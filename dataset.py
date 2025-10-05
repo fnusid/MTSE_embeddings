@@ -402,6 +402,12 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         n_train = int(0.8 * len(spk_ids))
         train_ids = spk_ids[:n_train]
         val_ids = spk_ids[n_train:]
+        #print the number of class in train and test
+        print(f"Number of classes in train is {len(train_ids)}")
+        print(f"Number of classes in test is {len(test_ids)}")
+
+        self.train_num_class = len(train_ids)
+        self.test_num_class = len(test_ids)
 
         self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
         self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}

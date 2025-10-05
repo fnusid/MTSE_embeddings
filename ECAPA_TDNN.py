@@ -160,8 +160,8 @@ class ECAPA_TDNN(nn.Module):
             nn.Softmax(dim=2),
             )
         self.bn5 = nn.BatchNorm1d(3072)
-        self.fc6 = nn.Linear(3072, 192)
-        self.bn6 = nn.BatchNorm1d(192)
+        self.fc6 = nn.Linear(3072, config.emb_dim)
+        self.bn6 = nn.BatchNorm1d(config.emb_dim)
 
 
     def forward(self, x, aug):

@@ -3,14 +3,43 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from scipy.optimize import linear_sum_assignment
+import config
 
 '''
 Figure out the scales
 '''
 
+
+
+
+class LossWrapper(nn.Module):
+    def __init__(self, loss_name, **kwargs):
+        super().__init__()  
+        config = kwargs.get("config")
+
+        if self.loss_name == 'MagFace':
+            self.loss_fn = MagFaceLoss(n_class = kwargs.get("num_class"), alpha=config.alpha, beta = config.beta, 
+                                s=config.s, lmbda=config.lmbda, gamma=config.gamma, low=config.low, high=config.high,
+                                feat_dim = config.emb_dim, eta=config.eta, xi=config.xi)
+
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_fn}")
+
+    def forward(self, x, p, labels):
+        loss = self.loss_fn(x, p, labels)
+        return loss
+    
+
+
+
+
+
+
+
 class MagFaceLoss(nn.Module):
     def __init__(self, n_class, alpha=0.01, beta=100, s=30.0,
-                 lmbda=35.0, gamma=0.2, low=10.0, high=110.0, feat_dim=192):
+                 lmbda=35.0, gamma=0.2, low=10.0, high=110.0, feat_dim=192, eta=100, xi=100, p_stop=0.5,
+                c_miss=20.0, c_extra=10.0):
         """
         n_class: number of classes
         alpha, beta: parameters for adaptive margin function
@@ -23,6 +52,11 @@ class MagFaceLoss(nn.Module):
         super(MagFaceLoss, self).__init__()
         self.alpha = alpha
         self.beta = beta
+        self.eta = eta
+        self.xi = xi
+        self.p_stop=torch.tensor(p_stop),
+        self.c_miss=c_miss
+        self.c_extra=c_extra
         self.s = s
         self.lmbda = lmbda
         self.gamma = gamma
@@ -83,10 +117,7 @@ class MagFaceLoss(nn.Module):
 
         return loss
 
-    def permutation_free_loss_dynamic(self, pred_embs, pred_ps, gt_labels,
-                                    p_stop=torch.tensor(0.5),
-                                    c_miss=20.0, c_extra=10.0,
-                                    alpha=100, beta=100):
+    def forward(self, pred_embs, pred_ps, gt_labels):
         """
         pred_embs: [M, D]  predicted embeddings v^(n)
         pred_ps:   [M]     existence probabilities p_n
@@ -107,10 +138,10 @@ class MagFaceLoss(nn.Module):
 
         # 2) Pad to square with dummies
         if M < S:
-            pad = torch.full((S, S-M), c_miss, device=device)
+            pad = torch.full((S, S-M), self.c_miss, device=device)
             C_pad = torch.cat([C, pad], dim=1)            # S x S
         elif M > S:
-            pad = torch.full((M-S, M), c_extra, device=device)
+            pad = torch.full((M-S, M), self.c_extra, device=device)
             C_pad = torch.cat([C, pad], dim=0)            # M x M
         else:
             C_pad = C                                     # S x S
@@ -147,18 +178,17 @@ class MagFaceLoss(nn.Module):
         # Add explicit miss/extra penalties via assignment size difference
         N_miss = max(0, S - M)
         N_extra = max(0, M - S)
-        breakpoint()
-        L_spk = L_spk + c_miss * N_miss + c_extra * N_extra
+        L_spk = L_spk + self.c_miss * N_miss + self.c_extra * N_extra
 
         # 5) Existence loss for each predicted slot
         L_exist = F.binary_cross_entropy(pred_ps.clamp(1e-6, 1-1e-6), t_exist)
 
         # 6) Stop loss: want to stop right after S speakers
         t_stop = torch.tensor(1.0 if M >= S else 0.0, device=device)
-        L_stop = F.binary_cross_entropy(p_stop.clamp(1e-6, 1-1e-6).to(device), t_stop)
+        L_stop = F.binary_cross_entropy(self.p_stop.clamp(1e-6, 1-1e-6).to(device), t_stop)
 
         # 7) Total
-        L_total = L_spk + alpha * L_exist + beta * L_stop
+        L_total = L_spk + self.eta * L_exist + self.xi * L_stop
         return L_total
 
 

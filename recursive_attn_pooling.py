@@ -18,7 +18,7 @@ class RecursiveAttnPooling(nn.Module):
         """
         super().__init__()
         self.device = device if device is not None else torch.device("cpu")
-        self.encoder = ECAPA_TDNN(C=256).to(self.device)
+        self.encoder = ECAPA_TDNN(C=config.C).to(self.device)
 
         D = attn_config.d_model
         Dp = attn_config.dprime_model
