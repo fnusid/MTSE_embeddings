@@ -1,0 +1,12 @@
+torch
+torchvision
+torchaudio
+matplotlib
+pandas
+wandb
+pytorch_lightning
+soundfile
+librosa
+onnxruntime
+pyroomacoustics
+ffmpeg
