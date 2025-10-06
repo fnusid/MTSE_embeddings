@@ -1,0 +1,126 @@
+_wandb:
+    value:
+        cli_version: 0.22.1
+        e:
+            ems8yrms1xc2qhohp32i89yliw72h8n9:
+                codePath: trainer.py
+                codePathLocal: trainer.py
+                cpu_count: 32
+                cpu_count_logical: 32
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "21464350720"
+                        used: "13062975488"
+                email: sidharthcet1729@gmail.com
+                executable: /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/bin/python
+                git:
+                    commit: 6a1cbb23f5aeebbddef9e68bd1044bde62ac0378
+                    remote: https://github.com/fnusid/MTSE_embeddings.git
+                gpu: NVIDIA A40
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "48305799168"
+                      name: NVIDIA A40
+                      uuid: GPU-d630039d-c33d-1659-ea2e-85c48c9ef7b6
+                host: gl1505.arc-ts.umich.edu
+                memory:
+                    total: "403762896896"
+                os: Linux-4.18.0-553.50.1.el8_10.x86_64-x86_64-with-glibc2.28
+                program: /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py
+                python: CPython 3.10.18
+                root: ./wandb_logs
+                slurm:
+                    cluster_name: greatlakes
+                    conf: /var/spool/slurmd.spool/conf-cache/slurm.conf
+                    cpus_on_node: "15"
+                    cpus_per_task: "15"
+                    gpus_on_node: "1"
+                    gtids: "0"
+                    job_account: profdj0
+                    job_cpus_per_node: "15"
+                    job_end_time: "1759791889"
+                    job_gid: "114447794"
+                    job_gpus: "3"
+                    job_id: "33773248"
+                    job_name: interactive
+                    job_nodelist: gl1505
+                    job_num_nodes: "1"
+                    job_partition: spgpu
+                    job_qos: normal
+                    job_start_time: "1759701889"
+                    job_uid: "114447794"
+                    job_user: sidcs
+                    jobid: "33773248"
+                    launch_node_ipaddr: 141.211.192.39
+                    localid: "0"
+                    mem_per_node: "102400"
+                    mpi_type: none
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: gl1505
+                    nprocs: "1"
+                    ntasks: "1"
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    pty_port: "62943"
+                    pty_win_col: "294"
+                    pty_win_row: "31"
+                    script_context: prolog_task
+                    srun_comm_host: 141.211.192.39
+                    srun_comm_port: "62944"
+                    step_id: "4294967290"
+                    step_launcher_port: "62944"
+                    step_nodelist: gl1505
+                    step_num_nodes: "1"
+                    step_num_tasks: "1"
+                    step_tasks_per_node: "1"
+                    stepid: "4294967290"
+                    submit_dir: /gpfs/accounts/profdj_root/profdj0
+                    submit_host: gl-login2.arc-ts.umich.edu
+                    task_pid: "1534681"
+                    tasks_per_node: "1"
+                    topology_addr: gl1505
+                    topology_addr_pattern: node
+                    tres_per_task: cpu=15
+                startedAt: "2025-10-05T22:21:15.552272Z"
+                writerId: ems8yrms1xc2qhohp32i89yliw72h8n9
+        m:
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 5
+                - 9
+                - 41
+                - 53
+                - 103
+            "2":
+                - 1
+                - 5
+                - 9
+                - 41
+                - 53
+                - 103
+            "3":
+                - 7
+                - 13
+                - 66
+            "4": 3.10.18
+            "5": 0.22.1
+            "12": 0.22.1
+            "13": linux-x86_64
+num_class:
+    value: 5796

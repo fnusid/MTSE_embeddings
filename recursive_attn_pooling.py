@@ -7,10 +7,10 @@ import config
 from dataset import SpeakerIdentification
 
 class RecursiveAttnPooling(nn.Module):
-    def __init__(self, encoder: nn.Module, attn_config: Dict, device: Optional[torch.device] = None):
+    def __init__(self, encoder: nn.Module, config: Dict, device: Optional[torch.device] = None):
         """
         encoder: any encoder returning [B, T, D]
-        attn_config: dict with keys
+        config: dict with keys
             d_model: encoder output dimension D
             dprime_model: hidden size for attention scoring
             emb_dim: output embedding dimension
@@ -20,9 +20,9 @@ class RecursiveAttnPooling(nn.Module):
         self.device = device if device is not None else torch.device("cpu")
         self.encoder = ECAPA_TDNN(C=config.C).to(self.device)
 
-        D = attn_config.d_model
-        Dp = attn_config.dprime_model
-        E = attn_config.emb_dim
+        D = config.d_model
+        Dp = config.dprime_model
+        E = config.emb_dim
 
         # attention layers
         self.W1 = nn.Linear(3 * D, Dp, bias=False)
@@ -39,7 +39,7 @@ class RecursiveAttnPooling(nn.Module):
         # coverage init
         self.register_buffer("C0", torch.zeros(D))
 
-        self.threshold_stop = attn_config.threshold_stop 
+        self.threshold_stop = config.threshold_stop 
         self.probabilities = []
 
     # ------------------------------
@@ -97,7 +97,10 @@ class RecursiveAttnPooling(nn.Module):
         x: input to encoder
         Returns: [B, N, E] embeddings (N speakers found)
         """
-        breakpoint()
+
+        if x.ndim ==3:
+            x = x.mean(axis = 1)
+        
         h = self.encoder(x, aug=False)  # [B, D, T]
         h = h.transpose(1, 2)      # [B, T, D]
         B, T, D = h.shape
@@ -106,8 +109,8 @@ class RecursiveAttnPooling(nn.Module):
 
         embeddings = []
         stop = torch.zeros(B, dtype=torch.bool, device=h.device)
-
-        while not torch.all(stop).item():
+        count = 0
+        while not torch.all(stop).item() and count < 6:
             # uniform init attention to compute initial mu/sigma
             a_init = torch.ones(B, T, 1, device=h.device) / T
             mu, sigma = self.weighted_stats(h, a_init)
@@ -127,9 +130,10 @@ class RecursiveAttnPooling(nn.Module):
 
             # stopping
             p = self.calculate_p(a)  # [B]
+            print("P is ", p)
             self.probabilities.append(p)
-            print("P:", p )
             stop = stop | (p < self.threshold_stop)
+            count +=1
 
         embeddings = torch.stack(embeddings, dim=1)  # [B, N, E]
         return embeddings, self.probabilities
@@ -171,7 +175,7 @@ if __name__ == "__main__":
     #get a sample
     sample = dataset[0]
     # breakpoint()
-    model = RecursiveAttnPooling(encoder=None, attn_config=config)
+    model = RecursiveAttnPooling(encoder=None, config=config)
     noisy = sample["noisy"].mean(dim = 0).unsqueeze(0)  # [1, wav]
     embeddings, p = model(noisy)
 

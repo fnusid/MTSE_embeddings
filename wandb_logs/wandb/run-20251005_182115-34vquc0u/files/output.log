@@ -1,0 +1,80 @@
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name   | Type                 | Params | Mode
+--------------------------------------------------------
+0 | model  | RecursiveAttnPooling | 6.6 M  | train
+1 | loss   | LossWrapper          | 0      | train
+2 | metric | MetricsWrapper       | 0      | train
+--------------------------------------------------------
+6.6 M     Trainable params
+0         Non-trainable params
+6.6 M     Total params
+26.599    Total estimated model params size (MB)
+116       Modules in train mode
+0         Modules in eval mode
+Sanity Checking: |                                                                                                                                                                                                                                                              | 0/? [00:00<?, ?it/s]> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/dataset.py(458)val_dataloader()
+-> return DataLoader(
+*** SyntaxError: expected ':'
+*** IndentationError: expected an indented block after 'for' statement on line 1
+*** IndentationError: expected an indented block after 'for' statement on line 1
+*** IndentationError: expected an indented block after 'for' statement on line 1
+*** SyntaxError: invalid syntax
+*** SyntaxError: unexpected EOF while parsing
+*** IndentationError: expected an indented block after 'for' statement on line 1
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/utils.py:213: UserWarning: In 2.9, this function's implementation will be changed to use torchaudio.load_with_torchcodec` under the hood. Some parameters like ``normalize``, ``format``, ``buffer_size``, and ``backend`` will be ignored. We recommend that you port your code to rely directly on TorchCodec's decoder instead: https://docs.pytorch.org/torchcodec/stable/generated/torchcodec.decoders.AudioDecoder.html#torchcodec.decoders.AudioDecoder.
+  warnings.warn(
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/ffmpeg.py:88: UserWarning: torio.io._streaming_media_decoder.StreamingMediaDecoder has been deprecated. This deprecation is part of a large refactoring effort to transition TorchAudio into a maintenance phase. The decoding and encoding capabilities of PyTorch for both audio and video are being consolidated into TorchCodec. Please see https://github.com/pytorch/audio/issues/3902 for more information. It will be removed from the 2.9 release.
+  s = torchaudio.io.StreamReader(src, format, None, buffer_size)
+0 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+1 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+2 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+3 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+4 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+5 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+6 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+7 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+8 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+9 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+10 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+11 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+12 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+13 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+14 [torch.Size([8, 2, 512000]), torch.Size([8, 1449])]
+*** KeyboardInterrupt
+*** NameError: name 'exir' is not defined
+Traceback (most recent call last):
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py", line 87, in <module>
+    log_every_n_steps=config.log_every_n_steps,
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 560, in fit
+    call._call_and_handle_interrupt(
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 598, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1011, in _run
+    results = self._run_stage()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1053, in _run_stage
+    self._run_sanity_check()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1082, in _run_sanity_check
+    val_loop.run()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 120, in run
+    self.setup_data()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 176, in setup_data
+    dataloaders = _request_dataloader(source)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/data_connector.py", line 334, in _request_dataloader
+    return data_source.dataloader()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/data_connector.py", line 301, in dataloader
+    return call._call_lightning_datamodule_hook(self.instance.trainer, self.name)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 199, in _call_lightning_datamodule_hook
+    return fn(*args, **kwargs)
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/dataset.py", line 458, in val_dataloader
+    return DataLoader(
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/dataset.py", line 458, in val_dataloader
+    return DataLoader(
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 90, in trace_dispatch
+    return self.dispatch_line(frame)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 115, in dispatch_line
+    if self.quitting: raise BdbQuit
+bdb.BdbQuit

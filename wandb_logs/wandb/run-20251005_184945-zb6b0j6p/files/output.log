@@ -1,0 +1,213 @@
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name   | Type                 | Params | Mode
+--------------------------------------------------------
+0 | model  | RecursiveAttnPooling | 6.6 M  | train
+1 | loss   | LossWrapper          | 0      | train
+2 | metric | MetricsWrapper       | 0      | train
+--------------------------------------------------------
+6.6 M     Trainable params
+0         Non-trainable params
+6.6 M     Total params
+26.599    Total estimated model params size (MB)
+116       Modules in train mode
+0         Modules in eval mode
+Sanity Checking DataLoader 0:   0%|                                                                                                                                                                                                                                             | 0/2 [00:00<?, ?it/s]> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(48)validation_step()
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:433: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=14` in the `DataLoader` to improve performance.
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/utils.py:213: UserWarning: In 2.9, this function's implementation will be changed to use torchaudio.load_with_torchcodec` under the hood. Some parameters like ``normalize``, ``format``, ``buffer_size``, and ``backend`` will be ignored. We recommend that you port your code to rely directly on TorchCodec's decoder instead: https://docs.pytorch.org/torchcodec/stable/generated/torchcodec.decoders.AudioDecoder.html#torchcodec.decoders.AudioDecoder.
+  warnings.warn(
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/ffmpeg.py:88: UserWarning: torio.io._streaming_media_decoder.StreamingMediaDecoder has been deprecated. This deprecation is part of a large refactoring effort to transition TorchAudio into a maintenance phase. The decoding and encoding capabilities of PyTorch for both audio and video are being consolidated into TorchCodec. Please see https://github.com/pytorch/audio/issues/3902 for more information. It will be removed from the 2.9 release.
+  s = torchaudio.io.StreamReader(src, format, None, buffer_size)
+-> noisy, labels = batch
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(49)validation_step()
+-> emb, p = self(noisy)
+P is  tensor([0.0273], device='cuda:0')
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(50)validation_step()
+-> mid = time.time()
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(51)validation_step()
+-> loss = self.loss(emb, p, labels)
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1949)__getattr__()
+-> def __getattr__(self, name: str) -> Union[Tensor, "Module"]:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1950)__getattr__()
+-> if "_parameters" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1951)__getattr__()
+-> _parameters = self.__dict__["_parameters"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1952)__getattr__()
+-> if name in _parameters:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1954)__getattr__()
+-> if "_buffers" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1955)__getattr__()
+-> _buffers = self.__dict__["_buffers"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1956)__getattr__()
+-> if name in _buffers:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1958)__getattr__()
+-> if "_modules" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1959)__getattr__()
+-> modules = self.__dict__["_modules"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1960)__getattr__()
+-> if name in modules:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1961)__getattr__()
+-> return modules[name]
+--Return--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1961)__getattr__()->LossWrapper(
+...agFaceLoss()
+)
+-> return modules[name]
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1769)_wrapped_call_impl()
+-> def _wrapped_call_impl(self, *args, **kwargs):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1770)_wrapped_call_impl()
+-> if self._compiled_call_impl is not None:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1773)_wrapped_call_impl()
+-> return self._call_impl(*args, **kwargs)
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1777)_call_impl()
+-> def _call_impl(self, *args, **kwargs):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1778)_call_impl()
+-> forward_call = (self._slow_forward if torch._C._get_tracing_state() else self.forward)
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1782)_call_impl()
+-> or _global_backward_pre_hooks or _global_backward_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1782)_call_impl()
+-> or _global_backward_pre_hooks or _global_backward_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1783)_call_impl()
+-> or _global_forward_hooks or _global_forward_pre_hooks):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1783)_call_impl()
+-> or _global_forward_hooks or _global_forward_pre_hooks):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1784)_call_impl()
+-> return forward_call(*args, **kwargs)
+--Call--
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(28)forward()
+-> def forward(self, x, p, labels):
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(29)forward()
+-> loss = self.loss_fn(x, p, labels)
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1949)__getattr__()
+-> def __getattr__(self, name: str) -> Union[Tensor, "Module"]:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1950)__getattr__()
+-> if "_parameters" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1951)__getattr__()
+-> _parameters = self.__dict__["_parameters"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1952)__getattr__()
+-> if name in _parameters:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1954)__getattr__()
+-> if "_buffers" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1955)__getattr__()
+-> _buffers = self.__dict__["_buffers"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1956)__getattr__()
+-> if name in _buffers:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1958)__getattr__()
+-> if "_modules" in self.__dict__:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1959)__getattr__()
+-> modules = self.__dict__["_modules"]
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1960)__getattr__()
+-> if name in modules:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1961)__getattr__()
+-> return modules[name]
+--Return--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1961)__getattr__()->MagFaceLoss()
+-> return modules[name]
+*** NameError: name 'ss' is not defined
+*** NameError: name 'ss' is not defined
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1769)_wrapped_call_impl()
+-> def _wrapped_call_impl(self, *args, **kwargs):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1770)_wrapped_call_impl()
+-> if self._compiled_call_impl is not None:
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1773)_wrapped_call_impl()
+-> return self._call_impl(*args, **kwargs)
+--Call--
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1777)_call_impl()
+-> def _call_impl(self, *args, **kwargs):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1778)_call_impl()
+-> forward_call = (self._slow_forward if torch._C._get_tracing_state() else self.forward)
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1782)_call_impl()
+-> or _global_backward_pre_hooks or _global_backward_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1782)_call_impl()
+-> or _global_backward_pre_hooks or _global_backward_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1783)_call_impl()
+-> or _global_forward_hooks or _global_forward_pre_hooks):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1783)_call_impl()
+-> or _global_forward_hooks or _global_forward_pre_hooks):
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1781)_call_impl()
+-> if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+> /scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py(1784)_call_impl()
+-> return forward_call(*args, **kwargs)
+--Call--
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(125)forward()
+-> def forward(self, pred_embs, pred_ps, gt_labels):
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(134)forward()
+-> device = pred_embs.device
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(135)forward()
+-> M = pred_embs.size(0)
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(136)forward()
+-> gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
+[[753], [938, 1347, 1378], [1156], [405, 573, 619, 822], [77, 380, 501, 1258], [900], [570], [177]]
+AttributeError: 'list' object has no attribute 'cpu'
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(136)forward()
+-> gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
+--Return--
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py(136)forward()->None
+-> gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
+Traceback (most recent call last):
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py", line 93, in <module>
+    trainer.fit(model, dm)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 560, in fit
+    call._call_and_handle_interrupt(
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 598, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1011, in _run
+    results = self._run_stage()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1053, in _run_stage
+    self._run_sanity_check()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1082, in _run_sanity_check
+    val_loop.run()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 145, in run
+    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 437, in _evaluation_step
+    output = call._call_strategy_hook(trainer, hook_name, *step_args)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 329, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 412, in validation_step
+    return self.lightning_module.validation_step(*args, **kwargs)
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py", line 51, in validation_step
+    loss = self.loss(emb, p, labels)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py", line 29, in forward
+    loss = self.loss_fn(x, p, labels)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/loss.py", line 136, in forward
+    gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 94, in trace_dispatch
+    return self.dispatch_return(frame, arg)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 156, in dispatch_return
+    if self.quitting: raise BdbQuit
+bdb.BdbQuit

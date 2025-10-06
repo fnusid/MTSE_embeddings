@@ -1,0 +1,11 @@
+{"time":"2025-10-05T14:24:19.582364167-04:00","level":"INFO","msg":"stream: starting","core version":"0.22.1"}
+{"time":"2025-10-05T14:24:19.926543419-04:00","level":"INFO","msg":"stream: created new stream","id":"angvufuz"}
+{"time":"2025-10-05T14:24:19.926665132-04:00","level":"INFO","msg":"handler: started","stream_id":"angvufuz"}
+{"time":"2025-10-05T14:24:19.927066897-04:00","level":"INFO","msg":"stream: started","id":"angvufuz"}
+{"time":"2025-10-05T14:24:19.927097949-04:00","level":"INFO","msg":"sender: started","stream_id":"angvufuz"}
+{"time":"2025-10-05T14:24:19.927095288-04:00","level":"INFO","msg":"writer: started","stream_id":"angvufuz"}
+{"time":"2025-10-05T14:26:20.594461602-04:00","level":"INFO","msg":"stream: closing","id":"angvufuz"}
+{"time":"2025-10-05T14:26:20.874926254-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-05T14:26:20.980234703-04:00","level":"INFO","msg":"handler: closed","stream_id":"angvufuz"}
+{"time":"2025-10-05T14:26:20.980896873-04:00","level":"INFO","msg":"sender: closed","stream_id":"angvufuz"}
+{"time":"2025-10-05T14:26:20.980906852-04:00","level":"INFO","msg":"stream: closed","id":"angvufuz"}

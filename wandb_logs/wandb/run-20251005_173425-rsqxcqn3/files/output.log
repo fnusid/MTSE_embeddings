@@ -1,0 +1,20 @@
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name   | Type                 | Params | Mode
+--------------------------------------------------------
+0 | model  | RecursiveAttnPooling | 6.6 M  | train
+1 | loss   | LossWrapper          | 0      | train
+2 | metric | MetricsWrapper       | 0      | train
+--------------------------------------------------------
+6.6 M     Trainable params
+0         Non-trainable params
+6.6 M     Total params
+26.599    Total estimated model params size (MB)
+116       Modules in train mode
+0         Modules in eval mode
+Sanity Checking DataLoader 0:   0%|                                                                                                                                                                                                                                             | 0/2 [00:00<?, ?it/s]
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:433: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=19` in the `DataLoader` to improve performance.
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/utils.py:213: UserWarning: In 2.9, this function's implementation will be changed to use torchaudio.load_with_torchcodec` under the hood. Some parameters like ``normalize``, ``format``, ``buffer_size``, and ``backend`` will be ignored. We recommend that you port your code to rely directly on TorchCodec's decoder instead: https://docs.pytorch.org/torchcodec/stable/generated/torchcodec.decoders.AudioDecoder.html#torchcodec.decoders.AudioDecoder.
+  warnings.warn(
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/ffmpeg.py:88: UserWarning: torio.io._streaming_media_decoder.StreamingMediaDecoder has been deprecated. This deprecation is part of a large refactoring effort to transition TorchAudio into a maintenance phase. The decoding and encoding capabilities of PyTorch for both audio and video are being consolidated into TorchCodec. Please see https://github.com/pytorch/audio/issues/3902 for more information. It will be removed from the 2.9 release.
+  s = torchaudio.io.StreamReader(src, format, None, buffer_size)

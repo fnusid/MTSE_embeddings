@@ -6,22 +6,22 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from metrics import MetricsWrapper
 from recursive_attn_pooling import RecursiveAttnPooling
-from loss import MagFaceLoss
+from loss import LossWrapper
 import config
 import ast
 from dataset import SpeakerIdentificationDM
 
 class SpeakerEmbeddingModule(pl.LightningModule):
-    def __init__(self, config, num_classes):
+    def __init__(self, config, num_class):
         super().__init__()
         self.save_hyperparameters(ignore=['config'])
         self.model = RecursiveAttnPooling(encoder=None, config=config)
         self.lr = config.lr
         self.weight_decay = config.weight_decay
         #define num_class after dataset
-        self.num_classes = num_classes
+        self.num_class = num_class
         emb_dim = config.emb_dim
-        self.loss = LossWrapper(**config.loss_params)
+        self.loss = LossWrapper(num_class=num_class,**config.loss_params)
 
         self.metric = MetricsWrapper([config.metric_name])
 
@@ -42,9 +42,15 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         return loss
     
     def validation_step(self, batch, batch_idx):
+        import time
+        start = time.time()
+        breakpoint()
         noisy, labels = batch
         emb, p = self(noisy)
+        mid = time.time()
         loss = self.loss(emb, p, labels)
+        end = time.time()
+        print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
         self.log("val/loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
         return loss
     
@@ -71,14 +77,14 @@ if __name__ == "__main__":
     #Model
     sample_batch = next(iter(dm.train_dataloader()))
     num_classes = sample_batch[1].shape[1]
-    model = SpeakerEmbeddingModule(config, num_classes=num_classes)
+    model = SpeakerEmbeddingModule(config, num_class=num_classes)
 
     #Trainer with WandB logger
     trainer = pl.Trainer(
         max_epochs=config.max_epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=config.devices,
-        logger=wandb_logger,
+        logger=None,
         log_every_n_steps=config.log_every_n_steps,
         gradient_clip_val=config.gradient_clip_val,
         enable_checkpointing=True,

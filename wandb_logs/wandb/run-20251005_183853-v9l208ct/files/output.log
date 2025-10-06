@@ -1,0 +1,63 @@
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name   | Type                 | Params | Mode
+--------------------------------------------------------
+0 | model  | RecursiveAttnPooling | 6.6 M  | train
+1 | loss   | LossWrapper          | 0      | train
+2 | metric | MetricsWrapper       | 0      | train
+--------------------------------------------------------
+6.6 M     Trainable params
+0         Non-trainable params
+6.6 M     Total params
+26.599    Total estimated model params size (MB)
+116       Modules in train mode
+0         Modules in eval mode
+Sanity Checking DataLoader 0:   0%|                                                                                                                                                                                                                                             | 0/2 [00:00<?, ?it/s]> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(48)validation_step()
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:433: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=14` in the `DataLoader` to improve performance.
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/utils.py:213: UserWarning: In 2.9, this function's implementation will be changed to use torchaudio.load_with_torchcodec` under the hood. Some parameters like ``normalize``, ``format``, ``buffer_size``, and ``backend`` will be ignored. We recommend that you port your code to rely directly on TorchCodec's decoder instead: https://docs.pytorch.org/torchcodec/stable/generated/torchcodec.decoders.AudioDecoder.html#torchcodec.decoders.AudioDecoder.
+  warnings.warn(
+/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/torchaudio/_backend/ffmpeg.py:88: UserWarning: torio.io._streaming_media_decoder.StreamingMediaDecoder has been deprecated. This deprecation is part of a large refactoring effort to transition TorchAudio into a maintenance phase. The decoding and encoding capabilities of PyTorch for both audio and video are being consolidated into TorchCodec. Please see https://github.com/pytorch/audio/issues/3902 for more information. It will be removed from the 2.9 release.
+  s = torchaudio.io.StreamReader(src, format, None, buffer_size)
+-> noisy, labels = batch
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(49)validation_step()
+-> emb, p = self(noisy)
+P is  tensor([5.7905e-06], device='cuda:0')
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(50)validation_step()
+-> mid = time.time()
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(51)validation_step()
+-> loss = self.loss(emb, p, labels)
+NameError: name 'np' is not defined
+> /gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py(51)validation_step()
+-> loss = self.loss(emb, p, labels)
+Traceback (most recent call last):
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py", line 93, in <module>
+    trainer.fit(model, dm)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 560, in fit
+    call._call_and_handle_interrupt(
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 598, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1011, in _run
+    results = self._run_stage()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1053, in _run_stage
+    self._run_sanity_check()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1082, in _run_sanity_check
+    val_loop.run()
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 145, in run
+    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 437, in _evaluation_step
+    output = call._call_strategy_hook(trainer, hook_name, *step_args)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 329, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 412, in validation_step
+    return self.lightning_module.validation_step(*args, **kwargs)
+  File "/gpfs/accounts/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/trainer.py", line 51, in validation_step
+    loss = self.loss(emb, p, labels)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 96, in trace_dispatch
+    return self.dispatch_exception(frame, arg)
+  File "/scratch/profdj_root/profdj0/sidcs/envs/miniconda3/envs/mtse/lib/python3.10/bdb.py", line 176, in dispatch_exception
+    if self.quitting: raise BdbQuit
+bdb.BdbQuit

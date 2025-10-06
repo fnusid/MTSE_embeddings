@@ -8,9 +8,9 @@ threshold_stop=0.5
 
 #dataest paramss
 dataset_params= dict(
-speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt"
-noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt"
-rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt"
+speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt",
+noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt",
+rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt",
 N_max_speakers=4,
 overlap_ratio=0.2,
 desired_duration=8.0,
@@ -20,7 +20,9 @@ add_noise_prob=0.5,
 overlap_prob=0.5,
 rir_probability=0.5,
 global_snr=(-5, 40),
-peak_normalization=True)
+peak_normalization=True,
+num_workers=0,
+batch_size=8)
 
 
 #metric params

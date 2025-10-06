@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import math
 from scipy.optimize import linear_sum_assignment
 import config
-
+import numpy as np
 '''
 Figure out the scales
 '''
@@ -13,14 +13,14 @@ Figure out the scales
 
 
 class LossWrapper(nn.Module):
-    def __init__(self, loss_name, **kwargs):
+    def __init__(self, num_class, **kwargs):
         super().__init__()  
         config = kwargs.get("config")
-
+        self.loss_name = kwargs.get("loss_name")
         if self.loss_name == 'MagFace':
-            self.loss_fn = MagFaceLoss(n_class = kwargs.get("num_class"), alpha=config.alpha, beta = config.beta, 
-                                s=config.s, lmbda=config.lmbda, gamma=config.gamma, low=config.low, high=config.high,
-                                feat_dim = config.emb_dim, eta=config.eta, xi=config.xi)
+            self.loss_fn = MagFaceLoss(n_class = num_class, alpha=kwargs.get("alpha"), beta = kwargs.get("beta"), 
+                                s=kwargs.get("s"), lmbda=kwargs.get("lmbda"), gamma=kwargs.get("gamma"), low=kwargs.get("low"), high=kwargs.get("high"),
+                                feat_dim = kwargs.get("feat_dim"), eta=kwargs.get("eta"), xi=kwargs.get("xi"))
 
         else:
             raise ValueError(f"Unsupported loss function: {loss_fn}")
@@ -51,6 +51,7 @@ class MagFaceLoss(nn.Module):
         """
         super(MagFaceLoss, self).__init__()
         self.alpha = alpha
+        self.n_class = n_class
         self.beta = beta
         self.eta = eta
         self.xi = xi
@@ -65,10 +66,11 @@ class MagFaceLoss(nn.Module):
         self.device = 'cuda'
 
         # Class weights
+
         self.weight = nn.Parameter(torch.FloatTensor(n_class, feat_dim)).to(self.device)
         nn.init.xavier_normal_(self.weight, gain=1.0)
 
-        self.ce = nn.CrossEntropyLoss()
+        # self.ce = nn.CrossEntropyLoss()
 
     def magface_single_loss(self, x, label):
         """
@@ -76,6 +78,9 @@ class MagFaceLoss(nn.Module):
         label: [B] ground truth class indices
         """
         # Norm of embedding, bounded
+        if x.ndim == 3: #[B, n_sp, D]
+            x = x.squeeze(1)
+        batch_size = x.size(0)
         norm_x = torch.norm(x, p=2, dim=1, keepdim=True).clamp(self.low, self.high)  # [B, 1]
 
         # Adaptive margin: m_i = α * ||x|| + β / ||x||
@@ -97,16 +102,21 @@ class MagFaceLoss(nn.Module):
         phi = torch.where(cosine > th, phi, cosine - mm)
 
         # One-hot encode labels
+        one_hot = torch.zeros(batch_size, self.n_class, device=x.device)
+        for idx, lbls in enumerate(label):
+            one_hot[idx, lbls] = 1.0
         # one_hot = torch.zeros_like(cosine)
         # one_hot.scatter_(1, label.view(-1, 1), 1)
-        one_hot = label.float()
+        # one_hot = label.float()
 
         # Replace target class cosine with phi
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
 
         # Cross-entropy loss
-        ce_loss = self.ce(output, label)
+        if output.ndim == 3:
+            output = output.squeeze(1)
+        ce_loss = F.binary_cross_entropy_with_logits(output, one_hot)
 
         # Regularization: encourage norms inside [low, high]
         # Here we use midpoint of [l,u] as "target norm"
@@ -125,16 +135,19 @@ class MagFaceLoss(nn.Module):
         gt_labels: [S]     ground-truth speaker ids
         pair_loss_fn(x, y): returns scalar loss for embedding x and label y
         """
-
+        breakpoint()
         device = pred_embs.device
-        M = pred_embs.size(0)
-        S = gt_labels.size(0)
+        M = pred_embs.size(1)
+        gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
+        S = [len(item) for item in gt_labels]
     
         # 1) Build C (S x M)
-        C = torch.empty(S, M, device=device)
+        C = torch.empty(S, M, device=device) #how about batchwise
+        # breakpoint()
+        #DO BATCH WISE: TOM MORNING
         for i in range(S):
             for n in range(M):
-                C[i, n] = self.magface_single_loss(pred_embs[n].unsqueeze(0), gt_labels[i].unsqueeze(0))
+                C[i, n] = self.magface_single_loss(pred_embs[n].unsqueeze(0), torch.tensor(gt_labels[i], device=pred_embs.device).unsqueeze(0))
 
         # 2) Pad to square with dummies
         if M < S:

@@ -404,10 +404,10 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         val_ids = spk_ids[n_train:]
         #print the number of class in train and test
         print(f"Number of classes in train is {len(train_ids)}")
-        print(f"Number of classes in test is {len(test_ids)}")
+        print(f"Number of classes in val is {len(val_ids)}")
 
         self.train_num_class = len(train_ids)
-        self.test_num_class = len(test_ids)
+        self.val_num_class = len(val_ids)
 
         self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
         self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}
@@ -440,7 +440,7 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
             dataset=self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.num_workers,
+            num_workers=0,
             pin_memory=self.pin_memory,
             persistent_workers=use_workers,
             drop_last=True,
@@ -454,6 +454,7 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
 
     def val_dataloader(self):
         # keep workers at 0 during sanity check to avoid pickling issues in some envs
+
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
