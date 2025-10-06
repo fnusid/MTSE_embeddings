@@ -3,5 +3,9 @@ This repo contains model and training code for extracting multiple speaker emebd
 ## Installing requirements
 `pip install -r requirements.txt`
 
+## Changing parameters
+You can change the model, dataset, loss and the training parameters in `config.py`
+
 ## Training code
-Coming soon!
+You can start training the model by running the following in the terminal
+`python trainer.py`
