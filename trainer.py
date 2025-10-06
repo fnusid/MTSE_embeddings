@@ -42,15 +42,15 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         return loss
     
     def validation_step(self, batch, batch_idx):
-        import time
-        start = time.time()
-        breakpoint()
+        # import time
+        # start = time.time()
+        # breakpoint()
         noisy, labels = batch
         emb, p = self(noisy)
-        mid = time.time()
+        # mid = time.time()
         loss = self.loss(emb, p, labels)
-        end = time.time()
-        print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
+        # end = time.time()
+        # print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
         self.log("val/loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
         return loss
     

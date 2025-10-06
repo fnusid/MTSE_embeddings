@@ -40,7 +40,7 @@ class RecursiveAttnPooling(nn.Module):
         self.register_buffer("C0", torch.zeros(D))
 
         self.threshold_stop = config.threshold_stop 
-        self.probabilities = []
+        
 
     # ------------------------------
     # helper: weighted mean/std
@@ -86,7 +86,7 @@ class RecursiveAttnPooling(nn.Module):
         a: [B, T]
         Returns: [B] stop probability
         """
-        p = torch.sigmoid(-(torch.mean(a@self.wp)) + self.bp)  # [B]
+        p = torch.sigmoid(-(torch.mean(a@self.wp, dim = -1)) + self.bp)  # [B]
         return p
 
     # ------------------------------
@@ -97,7 +97,7 @@ class RecursiveAttnPooling(nn.Module):
         x: input to encoder
         Returns: [B, N, E] embeddings (N speakers found)
         """
-
+        self.probabilities = []
         if x.ndim ==3:
             x = x.mean(axis = 1)
         
@@ -110,6 +110,12 @@ class RecursiveAttnPooling(nn.Module):
         embeddings = []
         stop = torch.zeros(B, dtype=torch.bool, device=h.device)
         count = 0
+        mask = torch.ones((B, 6), dtype=torch.bool, device=h.device)
+        #DO INDIVIDUAL STOP FOR EACH OF THE ITEM IN BATCH
+        '''
+        KEEP A MASK VARIABLE AND APPLY THE MASK AT THE END
+        '''
+
         while not torch.all(stop).item() and count < 6:
             # uniform init attention to compute initial mu/sigma
             a_init = torch.ones(B, T, 1, device=h.device) / T
@@ -130,13 +136,24 @@ class RecursiveAttnPooling(nn.Module):
 
             # stopping
             p = self.calculate_p(a)  # [B]
-            print("P is ", p)
+            # print("P is ", p)
+            mask_indices = torch.where(p < self.threshold_stop)[0] 
+            if mask_indices.numel() > 0:
+                mask[mask_indices, count:] = 0
+            
+
             self.probabilities.append(p)
             stop = stop | (p < self.threshold_stop)
             count +=1
 
+        #multiply self.probabilities with mask and embeddings with mask
+
         embeddings = torch.stack(embeddings, dim=1)  # [B, N, E]
-        return embeddings, self.probabilities
+        probs = torch.stack(self.probabilities, dim=1)  # [B, N]
+        embeddings = embeddings * mask[:, :embeddings.size(1)].unsqueeze(-1)
+
+
+        return embeddings, probs
 
 
 def count_params(model):

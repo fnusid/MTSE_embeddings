@@ -135,74 +135,83 @@ class MagFaceLoss(nn.Module):
         gt_labels: [S]     ground-truth speaker ids
         pair_loss_fn(x, y): returns scalar loss for embedding x and label y
         """
-        breakpoint()
+        
         device = pred_embs.device
         M = pred_embs.size(1)
         gt_labels = [np.argwhere(item.cpu()==1).ravel().tolist() for item in gt_labels]
-        S = [len(item) for item in gt_labels]
+        S_all = [len(item) for item in gt_labels]
     
         # 1) Build C (S x M)
-        C = torch.empty(S, M, device=device) #how about batchwise
+         #how about batchwise
         # breakpoint()
         #DO BATCH WISE: TOM MORNING
-        for i in range(S):
-            for n in range(M):
-                C[i, n] = self.magface_single_loss(pred_embs[n].unsqueeze(0), torch.tensor(gt_labels[i], device=pred_embs.device).unsqueeze(0))
+        L_total_list = []
+        for b in range(pred_embs.shape[0]):
+            S = S_all[b]
+            C = torch.empty(S, M, device=device)
+            for i in range(S):
+                for n in range(M):
+                    C[i, n] = self.magface_single_loss(pred_embs[b][n].unsqueeze(0), torch.tensor(gt_labels[b][i], device=pred_embs.device).unsqueeze(0))
+            # breakpoint()
+            # 2) Pad to square with dummies
+            if M < S:
+                pad = torch.full((S, S-M), self.c_miss, device=device)
+                C_pad = torch.cat([C, pad], dim=1)            # S x S
+            elif M > S:
+                pad = torch.full((M-S, M), self.c_extra, device=device)
+                C_pad = torch.cat([C, pad], dim=0)            # M x M
+            else:
+                C_pad = C                                     # S x S
 
-        # 2) Pad to square with dummies
-        if M < S:
-            pad = torch.full((S, S-M), self.c_miss, device=device)
-            C_pad = torch.cat([C, pad], dim=1)            # S x S
-        elif M > S:
-            pad = torch.full((M-S, M), self.c_extra, device=device)
-            C_pad = torch.cat([C, pad], dim=0)            # M x M
-        else:
-            C_pad = C                                     # S x S
+            # 3) Hungarian on CPU (scipy)
+            row_ind, col_ind = linear_sum_assignment(C_pad.detach().cpu().numpy())
 
-        # 3) Hungarian on CPU (scipy)
-        row_ind, col_ind = linear_sum_assignment(C_pad.detach().cpu().numpy())
+            # 4) Compute L_spk and collect existence targets t_n
+            L_spk_real = []
+            t_exist = torch.zeros(M, device=device, dtype=pred_ps.dtype)
 
-        # 4) Compute L_spk and collect existence targets t_n
-        L_spk_real = []
-        t_exist = torch.zeros(M, device=device, dtype=pred_ps.dtype)
+            for r, c in zip(row_ind, col_ind):
+                if M <= S:  # padded columns mean misses
+                    if c < M:           # real pred matched to real GT
+                        L_spk_real.append(C[r, c])
+                        t_exist[c] = 1  # that slot should exist
+                    else:
+                        # this GT was matched to a dummy column => a miss
+                        pass
+                else:       # padded rows mean extras
+                    if r < S:           # real GT matched to real pred
+                        L_spk_real.append(C[r, c])
+                        t_exist[c] = 1
+                    else:
+                        # dummy row matched to some pred => extra prediction
+                        # t_exist stays 0 for that slot
+                        pass
 
-        for r, c in zip(row_ind, col_ind):
-            if M <= S:  # padded columns mean misses
-                if c < M:           # real pred matched to real GT
-                    L_spk_real.append(C[r, c])
-                    t_exist[c] = 1  # that slot should exist
-                else:
-                    # this GT was matched to a dummy column => a miss
-                    pass
-            else:       # padded rows mean extras
-                if r < S:           # real GT matched to real pred
-                    L_spk_real.append(C[r, c])
-                    t_exist[c] = 1
-                else:
-                    # dummy row matched to some pred => extra prediction
-                    # t_exist stays 0 for that slot
-                    pass
+            if len(L_spk_real) > 0:
+                L_spk = torch.stack(L_spk_real).mean()
+            else:
+                L_spk = torch.tensor(0.0, device=device)
 
-        if len(L_spk_real) > 0:
-            L_spk = torch.stack(L_spk_real).mean()
-        else:
-            L_spk = torch.tensor(0.0, device=device)
+            # Add explicit miss/extra penalties via assignment size difference
+            N_miss = max(0, S - M)
+            N_extra = max(0, M - S)
+            L_spk = L_spk + self.c_miss * N_miss + self.c_extra * N_extra
 
-        # Add explicit miss/extra penalties via assignment size difference
-        N_miss = max(0, S - M)
-        N_extra = max(0, M - S)
-        L_spk = L_spk + self.c_miss * N_miss + self.c_extra * N_extra
+            # 5) Existence loss for each predicted slot
+            try:
+                L_exist = F.binary_cross_entropy(pred_ps[b].clamp(1e-6, 1-1e-6), t_exist)
+            except ValueError:
+                breakpoint()
 
-        # 5) Existence loss for each predicted slot
-        L_exist = F.binary_cross_entropy(pred_ps.clamp(1e-6, 1-1e-6), t_exist)
+            # 6) Stop loss: want to stop right after S speakers
+            t_stop = torch.tensor(1.0 if M >= S else 0.0, device=device)
+            L_stop = F.binary_cross_entropy(self.p_stop[0].clamp(1e-6, 1-1e-6).to(device), t_stop)
 
-        # 6) Stop loss: want to stop right after S speakers
-        t_stop = torch.tensor(1.0 if M >= S else 0.0, device=device)
-        L_stop = F.binary_cross_entropy(self.p_stop.clamp(1e-6, 1-1e-6).to(device), t_stop)
-
-        # 7) Total
-        L_total = L_spk + self.eta * L_exist + self.xi * L_stop
-        return L_total
+            # 7) Total
+            L_total = L_spk + self.eta * L_exist + self.xi * L_stop
+            L_total_list.append(L_total)
+        # breakpoint()
+        return torch.stack(L_total_list).mean()
 
 
 if __name__ == "__main__":
