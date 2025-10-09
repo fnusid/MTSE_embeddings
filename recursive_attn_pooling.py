@@ -39,7 +39,7 @@ class RecursiveAttnPooling(nn.Module):
         # coverage init
         self.register_buffer("C0", torch.zeros(D))
 
-        self.threshold_stop = config.threshold_stop 
+        self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop))
         
 
     # ------------------------------
@@ -73,20 +73,34 @@ class RecursiveAttnPooling(nn.Module):
         e = torch.cat([h, mu_exp, sigma_exp], dim=-1)  # [B, T, 3D]
 
         out1 = self.W1(e) + self.Wc(C).unsqueeze(1)  # [B, T, Dp]
-        out = self.W2(F.relu(out1))              # [B, T, D]
-        A = F.softmax(out.mean(dim=-1), dim=-1)      # [B, T]
+        out2 = self.W2(F.relu(out1))              # [B, T, D]
+        att_raw = out2.mean(dim=-1)                     # [B, T]
 
-        return A, out
+        # Compute energy-based mask
+        energy = h.pow(2).mean(dim=-1)                 # [B, T]
+        mask = (energy > 1e-4).float()                 # [B, T]
+
+        # Apply mask to logits *before* softmax
+        att_raw = att_raw.masked_fill(mask == 0, float('-inf'))
+
+        # Final attention weights
+        A = torch.softmax(att_raw, dim=-1)             # [B, T]
+        A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
+
+        return A, out2
+
+        # return A, out
 
     # ------------------------------
     # helper: stopping probability
     # ------------------------------
     def calculate_p(self, a: torch.Tensor):
         """
+
         a: [B, T]
         Returns: [B] stop probability
         """
-        p = torch.sigmoid(-(torch.mean(a@self.wp, dim = -1)) + self.bp)  # [B]
+        p = torch.sigmoid(-torch.mean(a@self.wp, dim =-1) + self.bp)  # [B]
         return p
 
     # ------------------------------
@@ -129,14 +143,19 @@ class RecursiveAttnPooling(nn.Module):
 
             # embedding
             emb = self.w0(torch.cat([mu_post, sigma_post], dim=-1))  # [B, E]
+            #normalize the embeddings because ArcFace assumes embeddings lie on a unit hypersphere
+            emb = F.normalize(emb, dim = -1)
             embeddings.append(emb)
 
             # update coverage
-            C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
+            active_mask = (~stop).float().unsqueeze(-1)
+            C = C + active_mask * (torch.matmul(A.unsqueeze(1), h).squeeze(1) / T)
+            # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
 
             # stopping
             p = self.calculate_p(a)  # [B]
             # print("P is ", p)
+            th = torch.clamp(self.threshold_stop, 0.1, 0.9)
             mask_indices = torch.where(p < self.threshold_stop)[0] 
             if mask_indices.numel() > 0:
                 mask[mask_indices, count:] = 0

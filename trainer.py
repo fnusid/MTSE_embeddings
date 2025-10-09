@@ -6,10 +6,37 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from metrics import MetricsWrapper
 from recursive_attn_pooling import RecursiveAttnPooling
+from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from loss import LossWrapper
 import config
 import ast
 from dataset import SpeakerIdentificationDM
+import warnings
+warnings.filterwarnings("ignore", module="torchaudio")
+
+
+def debug_gradients_and_losses(model, loss_dict):
+    """
+    Prints per-term loss magnitudes and gradient norms of key modules.
+    Call this once every few training steps or at the end of each epoch.
+    """
+    print("\n--- LOSS COMPONENTS ---")
+    for name, val in loss_dict.items():
+        if torch.is_tensor(val):
+            print(f"{name:>15}: {val.detach().cpu().item():8.4f}")
+        else:
+            print(f"{name:>15}: {val:.4f}")
+    
+    print("\n--- GRADIENT NORMS ---")
+    grad_info = {}
+    for name, p in model.named_parameters():
+        if p.grad is not None:
+            grad_info[name] = p.grad.data.abs().mean().item()
+    # Sort by largest gradients
+    for k,v in sorted(grad_info.items(), key=lambda x: -x[1])[:10]:
+        print(f"{k:>40}: {v:.5f}")
+    print("-----------------------\n")
+
 
 class SpeakerEmbeddingModule(pl.LightningModule):
     def __init__(self, config, num_class):
@@ -36,11 +63,20 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         noisy, labels = batch
         # x = noisy.mean(dim=1) #why?
         emb, p = self(noisy)
-        loss = self.loss(emb, p, labels)
+        total_loss, loss_dict = self.loss(emb, p, labels)
+        if batch_idx % 500 == 0:
+            # 1️⃣ Backward pass first to populate gradients
+            self._debug_loss_dict = loss_dict
 
-        self.log("train/loss", loss, prog_bar=True, on_step=True, on_epoch=True)
-        return loss
+        self.log("train/loss", total_loss, prog_bar=True, on_step=True, on_epoch=True)
+        return total_loss
     
+    def on_after_backward(self):
+        """Lightning automatically calls this after every backward()."""
+        if hasattr(self, "_debug_loss_dict") and self.global_step % 500 == 0:
+            
+            debug_gradients_and_losses(self, self._debug_loss_dict)
+
     def validation_step(self, batch, batch_idx):
         # import time
         # start = time.time()
@@ -48,11 +84,11 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         noisy, labels = batch
         emb, p = self(noisy)
         # mid = time.time()
-        loss = self.loss(emb, p, labels)
+        total_loss, loss_dict = self.loss(emb, p, labels)
         # end = time.time()
         # print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
-        self.log("val/loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
-        return loss
+        self.log("val/loss", total_loss, prog_bar=True, on_epoch=True, sync_dist=True)
+        return total_loss
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
@@ -80,14 +116,26 @@ if __name__ == "__main__":
     model = SpeakerEmbeddingModule(config, num_class=num_classes)
 
     #Trainer with WandB logger
+    # trainer = pl.Trainer(
+    #     max_epochs=config.max_epochs,
+    #     accelerator="gpu" if torch.cuda.is_available() else "cpu",
+    #     devices=config.devices,
+    #     logger=None,
+    #     log_every_n_steps=config.log_every_n_steps,
+    #     gradient_clip_val=config.gradient_clip_val,
+    #     enable_checkpointing=True,
+    #     callbacks=[
+    #         EarlyStopping(monitor='val/loss', patience=10, mode='min'),
+    #         ModelCheckpoint(dirpath=f'/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
+    #     ],
+    # )
     trainer = pl.Trainer(
-        max_epochs=config.max_epochs,
-        accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        devices=config.devices,
-        logger=None,
-        log_every_n_steps=config.log_every_n_steps,
-        gradient_clip_val=config.gradient_clip_val,
-        enable_checkpointing=True,
+        accelerator="gpu",
+        devices=[0],
+        max_epochs=100,
+        overfit_batches=1,   # ← magic line
+        log_every_n_steps=1,
+        enable_checkpointing=False
     )
 
     trainer.fit(model, dm)
