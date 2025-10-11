@@ -132,7 +132,10 @@ class ArcFaceLoss(nn.Module):
 
             L_exist = F.binary_cross_entropy(pred_ps[b].clamp(1e-6, 1-1e-6), t_exist)
             t_stop = torch.tensor(1.0 if M >= S else 0.0, device=device)
+            
             p_final = pred_ps[b, -1].clamp(1e-6, 1-1e-6)
+            # print(f"p_final (stop prob): {p_final.item():.4f}, t_stop: {t_stop.item()}")
+
             L_stop = F.binary_cross_entropy(p_final, t_stop)
 
             L_total = 0.01 * L_spk + self.eta * L_exist + self.xi * L_stop
@@ -146,12 +149,12 @@ class ArcFaceLoss(nn.Module):
         L_stop_total = torch.stack(L_stop_list).mean()
         L_total_total = torch.stack(L_total_list).mean()
 
-        print(f"\n--- LOSS COMPONENTS ---")
-        print(f"          L_spk: {L_spk_total.item():8.4f}")
-        print(f"        L_exist: {L_exist_total.item():8.4f}")
-        print(f"         L_stop: {L_stop_total.item():8.4f}")
-        print(f"        L_total: {L_total_total.item():8.4f}")
-        print("-----------------------")
+        # print(f"\n--- LOSS COMPONENTS ---")
+        # print(f"          L_spk: {L_spk_total.item():8.4f}")
+        # print(f"        L_exist: {L_exist_total.item():8.4f}")
+        # print(f"         L_stop: {L_stop_total.item():8.4f}")
+        # print(f"        L_total: {L_total_total.item():8.4f}")
+        # print("-----------------------")
 
         return L_total_total, {
             "L_spk": L_spk_total,

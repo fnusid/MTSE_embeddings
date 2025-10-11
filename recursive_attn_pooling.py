@@ -40,6 +40,7 @@ class RecursiveAttnPooling(nn.Module):
         self.register_buffer("C0", torch.zeros(D))
 
         self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop))
+        self.stop_fc = nn.Linear(2*config.d_model, 1)
         
 
     # ------------------------------
@@ -94,13 +95,17 @@ class RecursiveAttnPooling(nn.Module):
     # ------------------------------
     # helper: stopping probability
     # ------------------------------
-    def calculate_p(self, a: torch.Tensor):
+    def calculate_p(self, a: torch.Tensor, A, C):
         """
 
-        a: [B, T]
+        a: [B, T, D]
         Returns: [B] stop probability
         """
-        p = torch.sigmoid(-torch.mean(a@self.wp, dim =-1) + self.bp)  # [B]
+        # breakpoint()
+        z = (A.unsqueeze(-1) * a).sum(dim=1)     # [B, D]
+        z = torch.cat([z, C], dim=-1)            # [B, 2D]
+        p = torch.sigmoid(self.stop_fc(z)).squeeze(-1)
+        # p = torch.sigmoid(-torch.mean(a@self.wp, dim =-1) + self.bp)  # [B]
         return p
 
     # ------------------------------
@@ -153,7 +158,7 @@ class RecursiveAttnPooling(nn.Module):
             # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
 
             # stopping
-            p = self.calculate_p(a)  # [B]
+            p = self.calculate_p(a, A, C)  # [B]
             # print("P is ", p)
             th = torch.clamp(self.threshold_stop, 0.1, 0.9)
             mask_indices = torch.where(p < self.threshold_stop)[0] 

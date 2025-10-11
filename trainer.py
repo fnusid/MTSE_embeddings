@@ -9,6 +9,7 @@ from recursive_attn_pooling import RecursiveAttnPooling
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from loss import LossWrapper
 import config
+import os
 import ast
 from dataset import SpeakerIdentificationDM
 import warnings
@@ -64,11 +65,15 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         # x = noisy.mean(dim=1) #why?
         emb, p = self(noisy)
         total_loss, loss_dict = self.loss(emb, p, labels)
-        if batch_idx % 500 == 0:
-            # 1️⃣ Backward pass first to populate gradients
-            self._debug_loss_dict = loss_dict
+        # if batch_idx % 500 == 0:
+        #     # 1️⃣ Backward pass first to populate gradients
+        #     self._debug_loss_dict = loss_dict
 
-        self.log("train/loss", total_loss, prog_bar=True, on_step=True, on_epoch=True)
+        # self.log("train/loss", total_loss, prog_bar=True, on_step=True, on_epoch=True)
+        for k, v in loss_dict.items():
+            self.log(f"train/{k}", v, prog_bar=False, on_step=True, on_epoch=True)
+ 
+
         return total_loss
     
     def on_after_backward(self):
@@ -106,7 +111,9 @@ if __name__ == "__main__":
         save_dir="./wandb_logs"
     )
 
-
+    NUM_WORKERS = min(len(os.sched_getaffinity(0)), config.dataset_params['num_workers'])
+    config.dataset_params['num_workers'] = NUM_WORKERS
+    print(f"USING {NUM_WORKERS} NUM_WORKERS ")
     dm = SpeakerIdentificationDM(**config.dataset_params)
     dm.setup()
 
@@ -116,27 +123,28 @@ if __name__ == "__main__":
     model = SpeakerEmbeddingModule(config, num_class=num_classes)
 
     #Trainer with WandB logger
-    # trainer = pl.Trainer(
-    #     max_epochs=config.max_epochs,
-    #     accelerator="gpu" if torch.cuda.is_available() else "cpu",
-    #     devices=config.devices,
-    #     logger=None,
-    #     log_every_n_steps=config.log_every_n_steps,
-    #     gradient_clip_val=config.gradient_clip_val,
-    #     enable_checkpointing=True,
-    #     callbacks=[
-    #         EarlyStopping(monitor='val/loss', patience=10, mode='min'),
-    #         ModelCheckpoint(dirpath=f'/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
-    #     ],
-    # )
+    
     trainer = pl.Trainer(
-        accelerator="gpu",
-        devices=[0],
-        max_epochs=100,
-        overfit_batches=1,   # ← magic line
-        log_every_n_steps=1,
-        enable_checkpointing=False
+        max_epochs=config.max_epochs,
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        devices=config.devices,
+        logger=None,
+        log_every_n_steps=config.log_every_n_steps,
+        gradient_clip_val=config.gradient_clip_val,
+        enable_checkpointing=True,
+        callbacks=[
+            EarlyStopping(monitor='val/loss', patience=10, mode='min'),
+            ModelCheckpoint(dirpath=f'/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
+        ],
     )
+    # trainer = pl.Trainer(
+    #     accelerator="gpu",
+    #     devices=[0],
+    #     max_epochs=100,
+    #     overfit_batches=1,   # ← magic line
+    #     log_every_n_steps=1,
+    #     enable_checkpointing=False
+    # )
 
     trainer.fit(model, dm)
 

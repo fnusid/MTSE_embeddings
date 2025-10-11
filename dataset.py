@@ -276,7 +276,9 @@ class SpeakerIdentification(Dataset):
     # -------- Dataset API --------
 
     def __len__(self):
-        return len(self.speech_ids)
+        # return len(self.speech_ids)
+        # return sum(len(v) for v in self.speeches.values())
+        return 10_000
 
     def __getitem__(self, idx: int):
         '''
@@ -290,8 +292,9 @@ class SpeakerIdentification(Dataset):
         
 
         '''
-        # n_sp = random.randint(1, self.N_max_speakers)
-        n_sp = self.N_max_speakers
+        n_sp = random.randint(1, self.N_max_speakers)
+        # n_sp = self.N_max_speakers
+        # n_sp = 2
         # n_sp = 1
         chosen_ids = random.choices(self.speech_ids, k=n_sp)
 
@@ -400,23 +403,59 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         spk_ids = list(self.speech_files.keys())
         random.shuffle(spk_ids)
 
-        # n_train = int(0.8 * len(spk_ids))
 
-        # train_ids = spk_ids[:n_train]
-        # val_ids = spk_ids[n_train:]
 
-        train_ids = spk_ids[5:7]
-        val_ids = spk_ids[20:22]
-        #print the number of class in train and test
-        print(f"Number of classes in train is {len(train_ids)}")
-        print(f"Number of classes in val is {len(val_ids)}")
+    ##############################
 
+        # spk_ids = spk_ids[5:7]
+        train_ids = []
+        val_ids = []
+        train_speech, val_speech = {}, {}
+
+        for spk in spk_ids:
+            utterances = self.speech_files[spk]
+            if len(utterances) < 2:
+                # skip speakers with only one utterance to avoid leakage
+                continue
+
+            random.shuffle(utterances)
+            n_train_utts = int(0.8 * len(utterances))
+            if n_train_utts == 0 or n_train_utts == len(utterances):
+                # skip if split degenerates (all train or all val)
+                continue
+
+            train_speech[spk] = utterances[:n_train_utts]
+            val_speech[spk] = utterances[n_train_utts:]
+
+            train_ids.append(spk)
+            val_ids.append(spk)
+        
+        self.train_speech = train_speech
+        self.val_speech = val_speech
         self.train_num_class = len(train_ids)
         self.val_num_class = len(val_ids)
 
-        self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
-        self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}
 
+
+    ###############################################################################
+        # # n_train = int(0.8 * len(spk_ids))
+
+        # # train_ids = spk_ids[:n_train]
+        # # val_ids = spk_ids[n_train:]
+
+        # train_ids = spk_ids[5:7]
+        # val_ids = spk_ids[20:22]
+        # #print the number of class in train and test
+        # print(f"Number of classes in train is {len(train_ids)}")
+        # print(f"Number of classes in val is {len(val_ids)}")
+
+        # self.train_num_class = len(train_ids)
+        # self.val_num_class = len(val_ids)
+
+        # self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
+        # self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}
+
+    #################################################################################
         random.shuffle(self.noise_files)
         random.shuffle(self.rir_files)
 

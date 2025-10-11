@@ -1,11 +1,11 @@
 
 #model params
-model_name="mtse_embeddings_vanila"
+model_name="mtse_embeddings_model_vanila"
 C=512
 d_model=512
 dprime_model=512
 emb_dim=192
-threshold_stop=0.1
+threshold_stop=0.4
 
 #dataest paramss
 dataset_params= dict(
@@ -23,7 +23,7 @@ rir_probability=0.5,
 global_snr=(0, 40),
 peak_normalization=True,
 num_workers=8,
-batch_size=1)
+batch_size=64)
 
 
 #metric params
@@ -77,4 +77,4 @@ weight_decay=1e-5
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="vanila"
+model_name="model_vanila"
