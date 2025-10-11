@@ -276,7 +276,9 @@ class SpeakerIdentification(Dataset):
     # -------- Dataset API --------
 
     def __len__(self):
-        return len(self.speech_ids)
+        # return len(self.speech_ids)
+        # return sum(len(v) for v in self.speeches.values())
+        return 10_000
 
     def __getitem__(self, idx: int):
         '''
@@ -291,6 +293,8 @@ class SpeakerIdentification(Dataset):
 
         '''
         n_sp = random.randint(1, self.N_max_speakers)
+        # n_sp = self.N_max_speakers
+        # n_sp = 2
         # n_sp = 1
         chosen_ids = random.choices(self.speech_ids, k=n_sp)
 
@@ -399,19 +403,59 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         spk_ids = list(self.speech_files.keys())
         random.shuffle(spk_ids)
 
-        n_train = int(0.8 * len(spk_ids))
-        train_ids = spk_ids[:n_train]
-        val_ids = spk_ids[n_train:]
-        #print the number of class in train and test
-        print(f"Number of classes in train is {len(train_ids)}")
-        print(f"Number of classes in val is {len(val_ids)}")
 
+
+    ##############################
+
+        # spk_ids = spk_ids[5:7]
+        train_ids = []
+        val_ids = []
+        train_speech, val_speech = {}, {}
+
+        for spk in spk_ids:
+            utterances = self.speech_files[spk]
+            if len(utterances) < 2:
+                # skip speakers with only one utterance to avoid leakage
+                continue
+
+            random.shuffle(utterances)
+            n_train_utts = int(0.8 * len(utterances))
+            if n_train_utts == 0 or n_train_utts == len(utterances):
+                # skip if split degenerates (all train or all val)
+                continue
+
+            train_speech[spk] = utterances[:n_train_utts]
+            val_speech[spk] = utterances[n_train_utts:]
+
+            train_ids.append(spk)
+            val_ids.append(spk)
+        
+        self.train_speech = train_speech
+        self.val_speech = val_speech
         self.train_num_class = len(train_ids)
         self.val_num_class = len(val_ids)
 
-        self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
-        self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}
 
+
+    ###############################################################################
+        # # n_train = int(0.8 * len(spk_ids))
+
+        # # train_ids = spk_ids[:n_train]
+        # # val_ids = spk_ids[n_train:]
+
+        # train_ids = spk_ids[5:7]
+        # val_ids = spk_ids[20:22]
+        # #print the number of class in train and test
+        # print(f"Number of classes in train is {len(train_ids)}")
+        # print(f"Number of classes in val is {len(val_ids)}")
+
+        # self.train_num_class = len(train_ids)
+        # self.val_num_class = len(val_ids)
+
+        # self.train_speech = {spk: self.speech_files[spk] for spk in train_ids}
+        # self.val_speech = {spk: self.speech_files[spk] for spk in val_ids}
+
+    #################################################################################
         random.shuffle(self.noise_files)
         random.shuffle(self.rir_files)
 
@@ -440,7 +484,7 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
             dataset=self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=0,
+            num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=use_workers,
             drop_last=True,
@@ -459,7 +503,7 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=0,
+            num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=False,
             drop_last=False,
@@ -476,14 +520,14 @@ if __name__ == "__main__":
     # expects lists of file paths; change these if you want to run locally
     # breakpoint()
     import ast
-    speeches_txt = "/nfs/turbo/coe-profdj/txts/voxceleb_test.txt"
-    noise_txt = "/scratch/profdj_root/profdj0/sidcs/utils/freesound.txt"
-    rir_txt = "/nfs/turbo/coe-profdj/txts/rirs_test.txt"
+    speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt"
+    noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt"
+    rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt"
     # breakpoint()
     dataset = SpeakerIdentificationDM(
-        speeches_list = speeches_txt,
-        noise_list = noise_txt,
-        rir_list = rir_txt,
+        speeches_list = speeches_list,
+        noise_list = noise_list,
+        rir_list = rir_list,
         N_max_speakers=4,
         overlap_ratio=0.2,
         desired_duration=8.0,
@@ -492,14 +536,37 @@ if __name__ == "__main__":
         add_noise_prob=0.5,
         overlap_prob=0.5,
         rir_probability=0.5,
-        global_snr=(-5, 40),
+        global_snr=(0, 40),
         peak_normalization=True,
     )
     #get a sample
+    # dataset.setup()
+    # dl = dataset.train_dataloader()
+    # breakpoint()
+    # for batch in dl:
+    #     x, y = batch
+    #     print("noisy:", x.shape, "labels:", y.shape)
+    #     break
+
+    save_dir = "./dataset_samples"
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Get one batch from the dataloader
     dataset.setup()
     dl = dataset.train_dataloader()
-    # breakpoint()
-    for batch in dl:
-        x, y = batch
-        print("noisy:", x.shape, "labels:", y.shape)
-        break
+
+    for i, (noisy, labels) in enumerate(dl):
+        print("noisy:", noisy.shape, "labels:", labels.shape)
+        # noisy shape: [B, 2, T] (binaural)
+        # labels shape: [B, num_classes]
+        for j in range(min(10, noisy.size(0))):
+            wav = noisy[j]  # [2, T]
+            # Peak normalize again for safe saving
+            wav = wav / wav.abs().max()
+            torchaudio.save(
+                os.path.join(save_dir, f"sample_{i:02d}_{j:02d}.wav"),
+                wav.cpu(),
+                sample_rate=dataset.train_dataset.sr
+            )
+            print(f"Saved {save_dir}/sample_{i:02d}_{j:02d}.wav | active speakers: {labels[j].sum().item():.0f}")
+        break  # just one batch
