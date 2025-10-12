@@ -128,7 +128,7 @@ if __name__ == "__main__":
         max_epochs=config.max_epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=config.devices,
-        logger=None,
+        logger=wandb_logger,
         log_every_n_steps=config.log_every_n_steps,
         gradient_clip_val=config.gradient_clip_val,
         enable_checkpointing=True,

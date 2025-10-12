@@ -1,25 +1,25 @@
 
 #model params
-model_name="mtse_embeddings_model_vanila"
+model_name="mtse_embeddings_model_clean_2sp"
 C=512
 d_model=512
 dprime_model=512
 emb_dim=192
-threshold_stop=0.4
+threshold_stop=0.2
 
 #dataest paramss
 dataset_params= dict(
 speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt",
 noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt",
 rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt",
-N_max_speakers=4,
-overlap_ratio=0.2,
+N_max_speakers=2,
+overlap_ratio=0.0,
 desired_duration=8.0,
 sr=16000,
 segment_length=8.0,
-add_noise_prob=0.5,
-overlap_prob=0.5,
-rir_probability=0.5,
+add_noise_prob=0.0,
+overlap_prob=0.0,
+rir_probability=0.0,
 global_snr=(0, 40),
 peak_normalization=True,
 num_workers=8,
@@ -50,14 +50,22 @@ tau = 1.0
 #     c_miss=3.0,
 #     c_extra=2.0
 # )
+# loss_params=dict(
+#     loss_name="ArcFace",
+#     s=30.0,
+#     m=0.5,
+#     eta=2.5,
+#     xi=5.0,
+#     c_miss=20.0,
+#     c_extra=10.0,
+#     emb_dim = emb_dim
+
+# )
 loss_params=dict(
     loss_name="ArcFace",
     s=30.0,
     m=0.5,
-    eta=2.5,
-    xi=5.0,
-    c_miss=20.0,
-    c_extra=10.0,
+    alpha=0.1,
     emb_dim = emb_dim
 
 )
@@ -77,4 +85,4 @@ weight_decay=1e-5
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="model_vanila"
+model_name="model_clean_2sp"

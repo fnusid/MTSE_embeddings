@@ -313,7 +313,7 @@ class SpeakerIdentification(Dataset):
         if speech.shape[0] == 1:
             speech = speech.unsqueeze(0) #[1, wav]
         #add rir with a probability
-        if np.random.rand() > self.rir_probability:
+        if np.random.rand() < self.rir_probability:
         # if 0 < self.rir_probability: #always add rir
             rir = self._load_rir(rr_path, n_sp = n_sp) #[n_mics, n_sources, T]
             convolved_speeches = []
@@ -334,7 +334,7 @@ class SpeakerIdentification(Dataset):
             speech = torch.stack([speech, speech], dim=1) #dim: [n_sp, 2, T]
                 
         #combine speeches with the given overlap ratio
-        if np.random.rand() > self.overlap_prob:
+        if np.random.rand() < self.overlap_prob:
         # if 0 < self.overlap_prob: #always overlap
             overlap_ratio = np.random.uniform(0, self.overlap_ratio)
 
