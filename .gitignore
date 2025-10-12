@@ -3,3 +3,6 @@ wandb_logs/
 __pycache__/
 dataset_samples/
 vanila/
+logs/
+model_vanilla/
+model_clean_2sp/
