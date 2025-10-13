@@ -50,7 +50,7 @@ check_val_every_n_epoch=2
 log_every_n_steps=10
 gradient_clip_val=1.0
 enable_checkpointing=True
-ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=23-val/loss=18.97.ckpt"
+ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=41-val/loss=12.33.ckpt"
 lr=1e-4
 weight_decay=1e-5
 

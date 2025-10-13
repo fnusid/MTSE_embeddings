@@ -87,8 +87,9 @@ class ArcFaceLoss(nn.Module):
             self.s = self.s_max
 
     def arcface_ce(self, x, label):
-        x = F.normalize(x, dim=-1)
-        W = F.normalize(self.weight, dim=-1)
+        x = F.normalize(x, dim=-1, eps=1e-6)
+        W = F.normalize(self.weight, dim=-1, eps=1e-6)
+
 
         cosine = F.linear(x, W).clamp(-1 + 1e-7, 1 - 1e-7)
         sine = torch.sqrt(torch.clamp(1.0 - cosine**2, min=1e-7))
@@ -98,6 +99,10 @@ class ArcFaceLoss(nn.Module):
         logits = cosine.clone()
         logits[0, label] = phi[0, label]
         logits = logits * self.s
+
+        if not torch.isfinite(logits).all():
+            logits = torch.nan_to_num(logits, nan=0.0, posinf=1e3, neginf=-1e3)
+
         return F.cross_entropy(logits, torch.tensor([label], device=x.device))
 
     # ------------------------------------------------------------
@@ -128,6 +133,10 @@ class ArcFaceLoss(nn.Module):
             for i in range(S):
                 for n in range(N):
                     C[i, n] = self.arcface_ce(pred_embs[b][n].unsqueeze(0), spk_ids[i])
+
+
+            if not torch.isfinite(C).all():
+                C = torch.nan_to_num(C, nan=1e6, posinf=1e6, neginf=1e6)
 
             # Hungarian min over permutations
             row_ind, col_ind = linear_sum_assignment(C.detach().cpu().numpy())
