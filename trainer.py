@@ -61,6 +61,9 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         return emb, p
     
     def training_step(self, batch, batch_idx):
+        if hasattr(self.loss.loss_fn, "update_schedules"):
+            self.loss.loss_fn.update_schedules(self.current_epoch)
+
         noisy, labels = batch
         # x = noisy.mean(dim=1) #why?
         emb, p = self(noisy)
@@ -133,7 +136,7 @@ if __name__ == "__main__":
         gradient_clip_val=config.gradient_clip_val,
         enable_checkpointing=True,
         callbacks=[
-            EarlyStopping(monitor='val/loss', patience=10, mode='min'),
+            EarlyStopping(monitor='val/loss', patience=20, mode='min'),
             ModelCheckpoint(dirpath=f'/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
         ],
     )
@@ -146,6 +149,6 @@ if __name__ == "__main__":
     #     enable_checkpointing=False
     # )
 
-    trainer.fit(model, dm)
+    trainer.fit(model, dm, ckpt_path= config.ckpt_path)
 
     wandb.finish()

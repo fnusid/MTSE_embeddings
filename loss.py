@@ -41,7 +41,7 @@ class ArcFaceLoss(nn.Module):
     Reference: Recursive Attention Pooling / Multi-speaker embedding papers.
     """
 
-    def __init__(self, n_class, s=30.0, m=0.50, alpha=0.1, emb_dim=192):
+    def __init__(self, n_class, s=30.0, m=0.2, alpha=0.1, emb_dim=192):
         """
         n_class: number of speaker classes
         s: ArcFace scale factor
@@ -62,10 +62,30 @@ class ArcFaceLoss(nn.Module):
         self.sin_m = math.sin(m)
         self.th = math.cos(math.pi - m)
         self.mm = math.sin(math.pi - m) * m
+        self.m_min, self.m_max, self.m_warmup = 0.2, 0.5, 55     # margin warmup
+        self.s_max, self.s_min, self.s_decay_start = 30.0, 20.0, 40  # scale decay
 
     # ------------------------------------------------------------
     # ArcFace CE loss for a single embedding vs label (Eq.17)
     # ------------------------------------------------------------
+
+    def update_schedules(self, epoch: int):
+        """Dynamically update margin and scale."""
+        # Margin: linear warmup
+        if epoch < self.m_warmup:
+            self.m = self.m_min + (self.m_max - self.m_min) * (epoch / self.m_warmup)
+        else:
+            self.m = self.m_max
+
+        # Scale: cosine decay
+        if epoch > self.s_decay_start:
+            progress = (epoch - self.s_decay_start) / 50  # spread over 50 epochs
+            self.s = self.s_max - (self.s_max - self.s_min) * (
+                0.5 * (1 - math.cos(math.pi * min(progress, 1.0)))
+            )
+        else:
+            self.s = self.s_max
+
     def arcface_ce(self, x, label):
         x = F.normalize(x, dim=-1)
         W = F.normalize(self.weight, dim=-1)
