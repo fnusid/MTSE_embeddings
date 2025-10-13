@@ -4,5 +4,5 @@ __pycache__/
 dataset_samples/
 vanila/
 logs/
-model_vanilla/
+model_vanila/
 model_clean_2sp/
