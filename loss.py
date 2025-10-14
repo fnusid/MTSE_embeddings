@@ -93,17 +93,18 @@ class ArcFaceLoss(nn.Module):
 
         cosine = F.linear(x, W).clamp(-1 + 1e-7, 1 - 1e-7)
         sine = torch.sqrt(torch.clamp(1.0 - cosine**2, min=1e-7))
-        phi = cosine * self.cos_m - sine * self.sin_m
+        phi = cosine * self.cos_m - sine * self.sin_m #cos(theta + m) 
         phi = torch.where(cosine > self.th, phi, cosine - self.mm)
 
         logits = cosine.clone()
-        logits[0, label] = phi[0, label]
+        logits[0, label] = phi[0, label] #applying +m only to the target class
         logits = logits * self.s
-
+        logits = logits.clamp(-30, 30)
+        target = torch.tensor([label], device=x.device, dtype=torch.long)
         if not torch.isfinite(logits).all():
             logits = torch.nan_to_num(logits, nan=0.0, posinf=1e3, neginf=-1e3)
 
-        return F.cross_entropy(logits, torch.tensor([label], device=x.device))
+        return F.cross_entropy(logits, target)
 
     # ------------------------------------------------------------
     # Main forward (Eq.15–20)
@@ -114,6 +115,15 @@ class ArcFaceLoss(nn.Module):
         pred_ps:   [B, N+1] existence probabilities (including stop p_{N+1})
         gt_labels: list of one-hot speaker indicators per batch item
         """
+        if hasattr(self, "trainer"):
+            epoch = getattr(self.trainer, "current_epoch", 0)
+            self.update_schedules(epoch)
+            # recompute angular constants for the new margin
+            self.cos_m = math.cos(self.m)
+            self.sin_m = math.sin(self.m)
+            self.th    = math.cos(math.pi - self.m)
+            self.mm    = math.sin(math.pi - self.m) * self.m
+        
         device = pred_embs.device
         B, N, D = pred_embs.shape
         gt_labels = [np.argwhere(item.cpu() == 1).ravel().tolist() for item in gt_labels]
@@ -155,20 +165,21 @@ class ArcFaceLoss(nn.Module):
             # (2) Counting loss L_cnt (Eq.19–20)
             # ------------------------------------------------
             p = pred_ps[b].clamp(1e-6, 1 - 1e-6)
+            eps = 1e-6
             if S <= N:  # general Eq.(19)
                 # first S → should be 1; next (S+1) → should be 0 (stop)
                 valid = p[:S]
                 stop = p[S] if S < p.numel() else p[-1]
-                L_cnt = -(torch.log(1 - valid).sum() + torch.log(stop)) / (S + 1)
+                L_cnt = -(torch.log(1 - valid + eps).sum() + torch.log(stop + eps)) / (S + 1)
             else:
                 # if S > N (shouldn't happen normally)
                 L_cnt = torch.tensor(0.0, device=device)
 
             # simplified alternative for only 1–2 speakers (Eq.20)
             if S == 1 and p.size(0) > 1:
-                L_cnt = -torch.log(p[1])
+                L_cnt = -torch.log(p[1] + eps)
             elif S == 2 and p.size(0) > 1:
-                L_cnt = -torch.log(1 - p[1])
+                L_cnt = -torch.log(1 - p[1] + eps)
 
             # ------------------------------------------------
             # (3) Total for this batch item (Eq.15)
