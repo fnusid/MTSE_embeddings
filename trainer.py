@@ -15,6 +15,10 @@ from dataset import SpeakerIdentificationDM
 import warnings
 warnings.filterwarnings("ignore", module="torchaudio")
 
+torch.set_float32_matmul_precision("high")
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 
 def debug_gradients_and_losses(model, loss_dict):
     """
@@ -59,6 +63,14 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         emb, p = self.model(x)
         # emb = emb.mean(dim = 1)
         return emb, p
+
+    def on_train_epoch_start(self):
+        if hasattr(self.loss, "update_schedules"):
+            self.loss.update_schedules(self.current_epoch)
+
+    def on_validation_epoch_start(self):
+        if hasattr(self.loss, "update_schedules"):
+            self.loss.update_schedules(self.current_epoch)
     
     def training_step(self, batch, batch_idx):
         if hasattr(self.loss.loss_fn, "update_schedules"):

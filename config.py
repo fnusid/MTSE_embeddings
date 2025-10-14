@@ -1,6 +1,6 @@
 
 #model params
-model_name="mtse_embeddings_model_clean_2sp"
+model_name="mtse_embeddings_model_noisyl_4sp"
 C=512
 d_model=512
 dprime_model=512
@@ -12,17 +12,17 @@ dataset_params= dict(
 speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt",
 noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt",
 rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt",
-N_max_speakers=2,
-overlap_ratio=0.0,
+N_max_speakers=4,
+overlap_ratio=0.3,
 desired_duration=8.0,
 sr=16000,
 segment_length=8.0,
-add_noise_prob=0.0,
-overlap_prob=0.0,
-rir_probability=0.0,
+add_noise_prob=0.3,
+overlap_prob=0.3,
+rir_probability=0.3,
 global_snr=(0, 40),
 peak_normalization=True,
-num_workers=8,
+num_workers=10,
 batch_size=64)
 
 
@@ -45,16 +45,19 @@ loss_params=dict(
 
 #Trainer params
 max_epochs=400
-devices=[0]
+devices=[1]
 check_val_every_n_epoch=2
 log_every_n_steps=10
 gradient_clip_val=1.0
 enable_checkpointing=True
-ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=41-val/loss=12.33.ckpt"
+ckpt_path=None
+# ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
+# ckpt_path = "/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=105-val/loss=11.81.ckpt"
+# ckpt_path = None
 lr=1e-4
 weight_decay=1e-5
 
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="model_clean_2sp"
+model_name="model_noisyl_4sp"
