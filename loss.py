@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from scipy.optimize import linear_sum_assignment
-import config
+from configs import paper_config as config
 import numpy as np
 '''
 Figure out the scales
@@ -71,20 +71,25 @@ class ArcFaceLoss(nn.Module):
 
     def update_schedules(self, epoch: int):
         """Dynamically update margin and scale."""
-        # Margin: linear warmup
-        if epoch < self.m_warmup:
-            self.m = self.m_min + (self.m_max - self.m_min) * (epoch / self.m_warmup)
+        if config.config_mode != "paper":
+            self.m = config.loss_params.get("m")
+            self.s = config.loss_params.get("s")
+            return
         else:
-            self.m = self.m_max
+            # Margin: linear warmup
+            if epoch < self.m_warmup:
+                self.m = self.m_min + (self.m_max - self.m_min) * (epoch / self.m_warmup)
+            else:
+                self.m = self.m_max
 
-        # Scale: cosine decay
-        if epoch > self.s_decay_start:
-            progress = (epoch - self.s_decay_start) / 50  # spread over 50 epochs
-            self.s = self.s_max - (self.s_max - self.s_min) * (
-                0.5 * (1 - math.cos(math.pi * min(progress, 1.0)))
-            )
-        else:
-            self.s = self.s_max
+            # Scale: cosine decay
+            if epoch > self.s_decay_start:
+                progress = (epoch - self.s_decay_start) / 50  # spread over 50 epochs
+                self.s = self.s_max - (self.s_max - self.s_min) * (
+                    0.5 * (1 - math.cos(math.pi * min(progress, 1.0)))
+                )
+            else:
+                self.s = self.s_max
 
     def arcface_ce(self, x, label):
         x = F.normalize(x, dim=-1, eps=1e-6)

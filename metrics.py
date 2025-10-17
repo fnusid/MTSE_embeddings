@@ -1,6 +1,6 @@
 import numpy as np
 import ot  # pip install POT
-import config
+from configs import paper_config as config
 import torch
 import torch.nn as nn
 # embeddings: preds [B,x,d], gts [B,y,d]; confidences p in [0,1]^x (optional)
