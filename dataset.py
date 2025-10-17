@@ -10,7 +10,7 @@ import torchaudio
 import pytorch_lightning as pl
 
 import ast
-import config
+from configs import paper_config as config
 
 '''
 Speaker files
@@ -70,6 +70,14 @@ def collate_pair(batch):
 
     return noisy, labels
 
+def db_to_ratio(db):
+    """Convert dB value to linear amplitude ratio."""
+    return 10 ** (db / 20)
+
+def set_signal_energy(x, target_energy):
+    """Scale tensor so that its RMS energy equals target_energy."""
+    rms = torch.sqrt(torch.mean(x ** 2) + 1e-8)
+    return x * (target_energy / (rms + 1e-8))
 
 
 # ---------------------------
@@ -141,13 +149,16 @@ class SpeakerIdentification(Dataset):
             self._resampler_cache[key] = rs
         return rs
 
+
     def _load_wav_mono(self, paths: List[str], length=None, noise=None, n_sp=None) -> torch.Tensor:
         wavs = []
         for idx, path in enumerate(paths):
             if n_sp is not None and idx >= n_sp:
                 break
             # breakpoint()
+
             wav, sr = torchaudio.load(path)  # (C, T)
+
             if wav.dim() == 2 and wav.size(0) > 1:
                 wav = wav[0:1]  # take first channel
             wav = wav.squeeze(0).to(torch.float32)
@@ -263,7 +274,7 @@ class SpeakerIdentification(Dataset):
                     if overlap_area > 0:
                         new_signal = torch.zeros((2,previous.shape[-1] + current.shape[-1] - overlap_area,), device=previous.device)
                         new_signal[:, :previous.shape[-1]-overlap_area] = previous[:, :previous.shape[-1]-overlap_area]
-                        new_signal[:, previous.shape[-1]-overlap_area:previous.shape[-1]] = previous[:, previous.shape[-1]-overlap_area:] + current[:, :overlap_area]
+                        new_signal[:, previous.shape[-1]-overlap_area:previous.shape[-1]] = previous[:, previous.shape[-1]-overlap_area:] + current[ :overlap_area]
                         new_signal[:, previous.shape[-1]:] = current[:, overlap_area:]
                         overlapped_signals.append(new_signal)
                     else:
@@ -312,6 +323,17 @@ class SpeakerIdentification(Dataset):
         speech = self._load_wav_mono(sp_path, n_sp=n_sp) #[n_sp, wav]
         if speech.shape[0] == 1:
             speech = speech.unsqueeze(0) #[1, wav]
+        
+        if config.config_mode == "paper" and n_sp ==2:
+            sir_range = config.dataset_params.get("sir_range", (-5,5))  # dB
+            sir_db = random.uniform(*sir_range)
+            sir_ratio = db_to_ratio(sir_db)
+
+            speech[0] = set_signal_energy(speech[0], 1.0)
+            speech[1] = set_signal_energy(speech[1], 1.0 / (sir_ratio + 1e-8))  # adjust relative loudness
+
+
+
         #add rir with a probability
         if np.random.rand() < self.rir_probability:
         # if 0 < self.rir_probability: #always add rir
@@ -333,15 +355,18 @@ class SpeakerIdentification(Dataset):
             #duplicate the single channel to make it binaural
             speech = torch.stack([speech, speech], dim=1) #dim: [n_sp, 2, T]
                 
+
         #combine speeches with the given overlap ratio
         if np.random.rand() < self.overlap_prob:
         # if 0 < self.overlap_prob: #always overlap
             overlap_ratio = np.random.uniform(0, self.overlap_ratio)
 
-            speech = self._mix_overlap_add([speech[i] for i in range(len(speech))], self.overlap_ratio)
+            speech = self._mix_overlap_add([speech[i] for i in range(len(speech))], self.overlap_ratio)  #[T]
 
         else:
             speech = speech.transpose(0, 1).reshape(2, -1) 
+
+
         # breakpoint()
 
         noise = self._load_wav_mono(nz_path, length=speech.shape[-1], noise=True) #gets noise as long as speech

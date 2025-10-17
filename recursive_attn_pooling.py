@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Dict
 from ECAPA_TDNN import ECAPA_TDNN
-import config 
+from configs import paper_config as config
 from dataset import SpeakerIdentification
 
 class RecursiveAttnPooling(nn.Module):

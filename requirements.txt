@@ -1,6 +1,6 @@
-torch
-torchvision
-torchaudio
+#torch
+#torchvision
+#torchaudio
 matplotlib
 pandas
 wandb
@@ -9,4 +9,6 @@ soundfile
 librosa
 onnxruntime
 pyroomacoustics
-ffmpeg
+#ffmpeg
+POT
+

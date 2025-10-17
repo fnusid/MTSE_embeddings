@@ -8,11 +8,14 @@ from metrics import MetricsWrapper
 from recursive_attn_pooling import RecursiveAttnPooling
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from loss import LossWrapper
-import config
+from configs import paper_config as config
 import os
+import math
 import ast
 from dataset import SpeakerIdentificationDM
 import warnings
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import LambdaLR
 warnings.filterwarnings("ignore", module="torchaudio")
 
 torch.set_float32_matmul_precision("high")
@@ -48,6 +51,12 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=['config'])
         self.model = RecursiveAttnPooling(encoder=None, config=config)
+        if config.config_mode=="paper":
+            print("Using paper config settings")
+            self.cycle_length = config.cycle_length
+            self.warmup_steps = config.warmup_steps
+            self.decay_factor = config.decay_factor
+            self.base_lr_factor = config.base_lr_factor  # base_lr = lr/10
         self.lr = config.lr
         self.weight_decay = config.weight_decay
         #define num_class after dataset
@@ -107,13 +116,63 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         total_loss, loss_dict = self.loss(emb, p, labels)
         # end = time.time()
         # print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
-        self.log("val/loss", total_loss, prog_bar=True, on_epoch=True, sync_dist=True)
+        for k, v in loss_dict.items():
+            if k != "L_total":
+                self.log(f"val/{k}", v, prog_bar=False, on_step=False, on_epoch=True)
+            else:
+                self.log(f"val/loss", v, prog_bar=True, on_step=False, on_epoch=True)
+
         return total_loss
     
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+    #     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=self.lr / 10)
+    #     return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=self.lr / 10)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        optimizer = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        def lr_lambda(step: int):
+            if step == 0:
+                return 0.01  # avoid zero division
+
+            # --- derive training progress ---
+            total_epochs = self.trainer.max_epochs
+            total_steps = self.trainer.estimated_stepping_batches
+            epoch = step / (total_steps / total_epochs)
+
+            # --- cycle handling ---
+            cycle = math.floor(epoch / self.cycle_length)
+            cycle_progress = (epoch % self.cycle_length) / self.cycle_length
+
+            # --- dynamic peak & base learning rates ---
+            peak_lr = self.lr * (self.decay_factor ** cycle)
+            base_lr = self.lr * self.base_lr_factor
+
+            # --- linear warm-up ---
+            if step < self.warmup_steps:
+                return 0.01 + 0.99 * (step / self.warmup_steps)
+
+            # --- cosine annealing inside each cycle ---
+            lr_val = base_lr + 0.5 * (peak_lr - base_lr) * (1 + math.cos(math.pi * cycle_progress))
+            return lr_val / self.lr  # normalize relative to initial LR
+
+        if config.config_mode=="paper":
+            print("Using paper config LR scheduler")
+            scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "step",   # step-level update
+                    "frequency": 1,
+                    "name": "cyclic_cosine_warmup_decay",
+                },
+            }
+        else:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=self.lr / 10)
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 if __name__ == "__main__":
 
@@ -148,8 +207,8 @@ if __name__ == "__main__":
         gradient_clip_val=config.gradient_clip_val,
         enable_checkpointing=True,
         callbacks=[
-            EarlyStopping(monitor='val/loss', patience=20, mode='min'),
-            ModelCheckpoint(dirpath=f'/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
+            # EarlyStopping(monitor='val/loss', patience=20, mode='min'),
+            ModelCheckpoint(dirpath=f'/home/sidharth./codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
         ],
     )
     # trainer = pl.Trainer(
