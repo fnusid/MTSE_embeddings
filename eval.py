@@ -106,7 +106,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=303-val/loss=11.08.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/model_noisypaper_2sp/best-checkpoint-epoch=347-val/loss=10.32.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     txt_path = "/mnt/disks/data/datasets/Datasets/Libri2Mix/sp_ver_clean.csv"
 
     # labels, wavs1, wavs2 = get_audio_and_labels(txt_file=txt_path)
-    dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/Libri2Mix/clean_2sp/")
+    dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/Libri2Mix/clean_2sp")
     dataloader = DataLoader(dataset, batch_size=8, shuffle=False,
                         collate_fn=lambda x: collate_fn(x, max_len_sec=8.0, sr=16000))
     model = load_model()
@@ -191,7 +191,9 @@ if __name__ == '__main__':
     all_embs, all_roles = [], []
 
     EERs, all_scores, all_labels = [], [], []
-    
+    sp2 = 0
+    sp6 = 0
+    sp_other = 0
     for batch in tqdm.tqdm(dataloader, desc="Iterating batches"):
         wav1 = batch["wav1"].to(device)
         wav2 = batch["wav2"].to(device)
@@ -200,17 +202,23 @@ if __name__ == '__main__':
   
             emb1 = model(wav1)[0] #get only emb and not p # [B, n_sp, emb_dim]
             emb2 = model(wav2)[0] #[B, n_sp, emb_dim]
+            if emb1.size(1) == 2 and emb2.size(1) ==2:
+                sp2 += 1
+            elif emb1.size(1) == 6 and emb2.size(1) ==6:
+                sp6 += 1
+            else:
+                sp_other += 1
     
             preds = calc_cosine_similarities(emb1, emb2)
 
         all_scores.append(preds.cpu())
         all_labels.append(labels.cpu())
-
+    print(f"sp2: {sp2}, sp6: {sp6}, sp_other: {sp_other}")
+    breakpoint()
 
     all_scores_compressed = torch.cat([torch.amax(scores, dim=(1, 2)) for scores in all_scores], dim=0)
     all_scores = all_scores_compressed
     all_labels = torch.cat(all_labels)
-    breakpoint()
     eer, th = calculate_eer(all_scores_compressed.to(device), all_labels.to(device))
     print(f"\nFinal EER: {eer*100:.2f}%  (threshold = {th:.4f})")
    

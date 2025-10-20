@@ -1,11 +1,11 @@
 config_mode="paper"
 #model params
-model_name="mtse_embeddings_model_noisypaper_2sp"
-C=512
-d_model=512
-dprime_model=512
+model_name="mtse_embeddings_model_paper_1024_p0.5"
+C=1024
+d_model=1536
+dprime_model=1536
 emb_dim=192
-threshold_stop=0.2
+threshold_stop=0.5
 
 #dataest paramss
 dataset_params= dict(
@@ -68,4 +68,4 @@ base_lr_factor = 0.1
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="model_noisypaper_2sp"
+model_name="model_paper_1024_p0.5"

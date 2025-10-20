@@ -10,4 +10,6 @@ model_clean_4sp/
 model_noisy_2sp/
 model_noisyl_4sp/
 model_noisypaper_2sp/
-
+ckpts/
+model_noisypaper_2sp_1024/
+model_paper_1024_p0.5/

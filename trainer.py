@@ -181,7 +181,7 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(
         project=config.project,
         name=config.model_name,
-        log_model=True,
+        log_model=False,
         save_dir="./wandb_logs"
     )
 

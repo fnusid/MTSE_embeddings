@@ -30,7 +30,7 @@ class RecursiveAttnPooling(nn.Module):
         self.W2 = nn.Linear(Dp, D)
 
         # stop probability params
-        self.wp = nn.Parameter(torch.randn(D))
+        self.wp = nn.Linear(D, 1, bias=True)
         self.bp = nn.Parameter(torch.zeros(1))
 
         # embedding projection
@@ -39,7 +39,7 @@ class RecursiveAttnPooling(nn.Module):
         # coverage init
         self.register_buffer("C0", torch.zeros(D))
 
-        self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop))
+        self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop), requires_grad=False)
         self.stop_fc = nn.Linear(2*config.d_model, 1)
         
 
@@ -73,40 +73,39 @@ class RecursiveAttnPooling(nn.Module):
 
         e = torch.cat([h, mu_exp, sigma_exp], dim=-1)  # [B, T, 3D]
 
-        out1 = self.W1(e) + self.Wc(C).unsqueeze(1)  # [B, T, Dp]
+        out1 = self.W1(e) + self.Wc(C)  # [B, T, Dp]
         out2 = self.W2(F.relu(out1))              # [B, T, D]
-        att_raw = out2.mean(dim=-1)                     # [B, T]
-
-        # Compute energy-based mask
-        energy = h.pow(2).mean(dim=-1)                 # [B, T]
-        mask = (energy > 1e-4).float()                 # [B, T]
-
-        # Apply mask to logits *before* softmax
-        att_raw = att_raw.masked_fill(mask == 0, float('-inf'))
+        # breakpoint()
 
         # Final attention weights
-        A = torch.softmax(att_raw, dim=-1)             # [B, T]
+        A = torch.softmax(out2, dim=-1)             # [B, T]
         A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
 
-        return A, out2
+        return A, out2 #[B, T, D], [B, T, D]
 
         # return A, out
 
     # ------------------------------
     # helper: stopping probability
     # ------------------------------
-    def calculate_p(self, a: torch.Tensor, A, C):
+    def calculate_p(self, a: torch.Tensor):
         """
 
         a: [B, T, D]
         Returns: [B] stop probability
         """
         # breakpoint()
-        z = (A.unsqueeze(-1) * a).sum(dim=1)     # [B, D]
-        z = torch.cat([z, C], dim=-1)            # [B, 2D]
-        p = torch.sigmoid(self.stop_fc(z)).squeeze(-1)
-        # p = torch.sigmoid(-torch.mean(a@self.wp, dim =-1) + self.bp)  # [B]
-        return p
+        # z = (A.unsqueeze(-1) * a).sum(dim=1)     # [B, D]
+        # z = torch.cat([z, C], dim=-1)            # [B, 2D]
+        # p = torch.sigmoid(self.stop_fc(z)).squeeze(-1)
+        z =  self.wp(a)
+        if z.ndim == 3:
+            z = z.squeeze(-1) #[B,T]
+            z = torch.mean(z, dim=1) #[B]
+        else:
+            z = torch.mean(z, dim=1)
+        return torch.sigmoid(z) #[B]
+
 
     # ------------------------------
     # forward
@@ -124,7 +123,7 @@ class RecursiveAttnPooling(nn.Module):
         h = h.transpose(1, 2)      # [B, T, D]
         B, T, D = h.shape
 
-        C = self.C0.unsqueeze(0).expand(B, -1)  # [B, D]
+        C = self.C0.unsqueeze(0).unsqueeze(0).expand(B, T, -1)  # [B, T, D]
 
         embeddings = []
         stop = torch.zeros(B, dtype=torch.bool, device=h.device)
@@ -153,12 +152,13 @@ class RecursiveAttnPooling(nn.Module):
             embeddings.append(emb)
 
             # update coverage
-            active_mask = (~stop).float().unsqueeze(-1)
-            C = C + active_mask * (torch.matmul(A.unsqueeze(1), h).squeeze(1) / T)
+ 
+            C = C + a
+
             # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
 
             # stopping
-            p = self.calculate_p(a, A, C)  # [B]
+            p = self.calculate_p(a)  # [B]
             # print("P is ", p)
             th = torch.clamp(self.threshold_stop, 0.1, 0.9)
             mask_indices = torch.where(p < self.threshold_stop)[0] 
