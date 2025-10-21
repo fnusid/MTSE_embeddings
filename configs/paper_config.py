@@ -52,10 +52,11 @@ enable_checkpointing=True
 # ckpt_path=None
 # ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=98-val/loss=11.17.ckpt"
-ckpt_path = None
+ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=14-val/loss=14.27.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=122-val/loss=12.45.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisyl_4sp/best-checkpoint-epoch=22-val/loss=14.83.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=110-val/loss=12.21.ckpt"
+
 lr=5e-4
 weight_decay=1e-5
 cycle_length = 20
