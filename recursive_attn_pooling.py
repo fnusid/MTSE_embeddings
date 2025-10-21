@@ -75,6 +75,9 @@ class RecursiveAttnPooling(nn.Module):
 
         out1 = self.W1(e) + self.Wc(C).unsqueeze(1)  # [B, T, Dp]
         out2 = self.W2(F.relu(out1))              # [B, T, D]
+        '''
+        averaged out the dimension axis to get attention score across time steps
+        '''
         att_raw = out2.mean(dim=-1)                     # [B, T]
 
         # Compute energy-based mask
@@ -137,6 +140,9 @@ class RecursiveAttnPooling(nn.Module):
 
         while not torch.all(stop).item() and count < 6:
             # uniform init attention to compute initial mu/sigma
+            '''
+            To use the same weighted_stats function later on too, I used a_init as uniform weights to calculate initial mu and sigma (it complies with the equations (2) and (3) in the paper).
+            '''
             a_init = torch.ones(B, T, 1, device=h.device) / T
             mu, sigma = self.weighted_stats(h, a_init)
 

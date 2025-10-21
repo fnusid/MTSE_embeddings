@@ -106,7 +106,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=303-val/loss=11.08.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/model_noisypaper_2sp_1024/best-checkpoint-epoch=148-val/loss=10.30.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):
@@ -179,10 +179,10 @@ def calc_cosine_similarities(embs1, embs2):
 
 if __name__ == '__main__':
 
-    txt_path = "/mnt/disks/data/datasets/Datasets/Libri2Mix/sp_ver_clean.csv"
+    txt_path = "/mnt/disks/data/datasets/Datasets/Vox1_sp_ver/sp_ver_noisy_10dB.csv"
 
     # labels, wavs1, wavs2 = get_audio_and_labels(txt_file=txt_path)
-    dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/Libri2Mix/clean_2sp/")
+    dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/Vox1_sp_ver/noisy_2sp_10dB/")
     dataloader = DataLoader(dataset, batch_size=8, shuffle=False,
                         collate_fn=lambda x: collate_fn(x, max_len_sec=8.0, sr=16000))
     model = load_model()
