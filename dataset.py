@@ -303,7 +303,8 @@ class SpeakerIdentification(Dataset):
         
 
         '''
-        n_sp = random.randint(1, self.N_max_speakers)
+        # n_sp = random.randint(1, self.N_max_speakers)
+        n_sp = self.current_n_sp
         # n_sp = self.N_max_speakers
         # n_sp = 2
         # n_sp = 1
@@ -519,10 +520,15 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         )
         if use_workers:
             kwargs["prefetch_factor"] = 2  # good general default
+        
+        self.train_dataset.current_n_sp = random.randint(1, self.dataset_kwargs.get("N_max_speakers"))
+        print(f"[DataLoader] Using n_sp = {self.train_dataset.current_n_sp} for this batch/epoch")
         return DataLoader(**kwargs)
 
     def val_dataloader(self):
-        # keep workers at 0 during sanity check to avoid pickling issues in some envs
+
+        self.val_dataset.current_n_sp = random.randint(1, self.dataset_kwargs.get("N_max_speakers"))
+        print(f"[DataLoader] Using n_sp = {self.val_dataset.current_n_sp} for this batch/epoch")        # keep workers at 0 during sanity check to avoid pickling issues in some envs
 
         return DataLoader(
             self.val_dataset,

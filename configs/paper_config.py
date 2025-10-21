@@ -1,11 +1,10 @@
 config_mode="paper"
 #model params
-model_name="mtse_embeddings_model_paper_1024_p0.5"
+model_name="mtse_embeddings_paper_oracle_speakers"
 C=1024
 d_model=1536
 dprime_model=1536
 emb_dim=192
-threshold_stop=0.5
 
 #dataest paramss
 dataset_params= dict(
@@ -23,7 +22,7 @@ rir_probability=0.5,
 global_snr=(0, 40),
 sir_range = (-5, 5),
 peak_normalization=True,
-num_workers=10,
+num_workers=20,
 batch_size=32)
 
 
@@ -39,7 +38,6 @@ loss_params=dict(
     loss_name="ArcFace",
     s=30.0,
     m=0.2,
-    alpha=0.1,
     emb_dim = emb_dim
 )
 
@@ -49,7 +47,7 @@ max_epochs=400
 devices=[0]
 check_val_every_n_epoch=2
 log_every_n_steps=10
-gradient_clip_val=1.0
+gradient_clip_val=0.8
 enable_checkpointing=True
 # ckpt_path=None
 # ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
@@ -68,4 +66,4 @@ base_lr_factor = 0.1
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="model_paper_1024_p0.5"
+model_name="paper_oracle_speakers"

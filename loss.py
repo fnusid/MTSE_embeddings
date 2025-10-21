@@ -23,13 +23,12 @@ class LossWrapper(nn.Module):
                                 feat_dim = kwargs.get("feat_dim"), eta=kwargs.get("eta"), xi=kwargs.get("xi"))
 
         elif self.loss_name == "ArcFace":
-            self.loss_fn = ArcFaceLoss(n_class = num_class, s = kwargs.get("s"), m = kwargs.get("m"),
-                                        alpha = kwargs.get("alpha"), emb_dim = kwargs.get("emb_dim"))
+            self.loss_fn = ArcFaceLoss(n_class = num_class, s = kwargs.get("s"), m = kwargs.get("m"), emb_dim = kwargs.get("emb_dim"))
         else:
             raise ValueError(f"Unsupported loss function: {loss_fn}")
 
-    def forward(self, x, p, labels):
-        loss = self.loss_fn(x, p, labels)
+    def forward(self, x, labels):
+        loss = self.loss_fn(x, labels)
         return loss
     
 
@@ -114,7 +113,7 @@ class ArcFaceLoss(nn.Module):
     # ------------------------------------------------------------
     # Main forward (Eq.15–20)
     # ------------------------------------------------------------
-    def forward(self, pred_embs, pred_ps, gt_labels):
+    def forward(self, pred_embs, gt_labels):
         """
         pred_embs: [B, N, D] predicted speaker embeddings
         pred_ps:   [B, N+1] existence probabilities (including stop p_{N+1})
@@ -133,7 +132,7 @@ class ArcFaceLoss(nn.Module):
         B, N, D = pred_embs.shape
         gt_labels = [np.argwhere(item.cpu() == 1).ravel().tolist() for item in gt_labels]
 
-        L_spk_list, L_cnt_list = [], []
+        L_spk_list = []
 
         for b in range(B):
             spk_ids = gt_labels[b]
@@ -167,46 +166,19 @@ class ArcFaceLoss(nn.Module):
                 L_spk = torch.tensor(0.0, device=device)
 
             # ------------------------------------------------
-            # (2) Counting loss L_cnt (Eq.19–20)
-            # ------------------------------------------------
-            p = pred_ps[b].clamp(1e-6, 1 - 1e-6)
-            eps = 1e-6
-            if S <= N:  # general Eq.(19)
-                # first S → should be 1; next (S+1) → should be 0 (stop)
-                valid = p[:S]
-                stop = p[S] if S < p.numel() else p[-1]
-                L_cnt = -(torch.log(1 - valid + eps).sum() + torch.log(stop + eps)) / (S + 1)
-            else:
-                # if S > N (shouldn't happen normally)
-                L_cnt = torch.tensor(0.0, device=device)
-
-            # simplified alternative for only 1–2 speakers (Eq.20)
-            if S == 1 and p.size(0) > 1:
-                L_cnt = -torch.log(p[1] + eps)
-            elif S == 2 and p.size(0) > 1:
-                L_cnt = -torch.log(1 - p[1] + eps)
-
-            # ------------------------------------------------
             # (3) Total for this batch item (Eq.15)
             # ------------------------------------------------
-            L_total = L_spk + self.alpha * L_cnt
+            L_total = L_spk 
 
             L_spk_list.append(L_spk)
-            L_cnt_list.append(L_cnt)
 
         # ------------------------------------------------
         # Batch means
         # ------------------------------------------------
         L_spk_total = torch.stack(L_spk_list).mean()
-        L_cnt_total = torch.stack(L_cnt_list).mean()
-        L_total_total = L_spk_total + self.alpha * L_cnt_total
+        L_total_total = L_spk_total
 
-        return L_total_total, {
-            "L_spk": L_spk_total,
-            "L_cnt": L_cnt_total,
-            "L_total": L_total_total,
-        }
-
+        return L_total_total
 
 
 

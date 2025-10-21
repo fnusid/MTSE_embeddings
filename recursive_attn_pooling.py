@@ -29,18 +29,12 @@ class RecursiveAttnPooling(nn.Module):
         self.Wc = nn.Linear(D, Dp, bias=False)
         self.W2 = nn.Linear(Dp, D)
 
-        # stop probability params
-        self.wp = nn.Linear(D, 1, bias=True)
-        self.bp = nn.Parameter(torch.zeros(1))
 
         # embedding projection
-        self.w0 = nn.Linear(2 * D, E)
+        self.w0 = nn.Linear(2 * D, E, bias=True)
 
         # coverage init
         self.register_buffer("C0", torch.zeros(D))
-
-        self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop), requires_grad=False)
-        self.stop_fc = nn.Linear(2*config.d_model, 1)
         
 
     # ------------------------------
@@ -79,43 +73,21 @@ class RecursiveAttnPooling(nn.Module):
 
         # Final attention weights
         A = torch.softmax(out2, dim=-1)             # [B, T]
-        A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
+        # A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
 
         return A, out2 #[B, T, D], [B, T, D]
 
         # return A, out
 
-    # ------------------------------
-    # helper: stopping probability
-    # ------------------------------
-    def calculate_p(self, a: torch.Tensor):
-        """
-
-        a: [B, T, D]
-        Returns: [B] stop probability
-        """
-        # breakpoint()
-        # z = (A.unsqueeze(-1) * a).sum(dim=1)     # [B, D]
-        # z = torch.cat([z, C], dim=-1)            # [B, 2D]
-        # p = torch.sigmoid(self.stop_fc(z)).squeeze(-1)
-        z =  self.wp(a)
-        if z.ndim == 3:
-            z = z.squeeze(-1) #[B,T]
-            z = torch.mean(z, dim=1) #[B]
-        else:
-            z = torch.mean(z, dim=1)
-        return torch.sigmoid(z) #[B]
-
 
     # ------------------------------
     # forward
     # ------------------------------
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, n_sp):
         """
         x: input to encoder
         Returns: [B, N, E] embeddings (N speakers found)
         """
-        self.probabilities = []
         if x.ndim ==3:
             x = x.mean(axis = 1)
         
@@ -126,15 +98,13 @@ class RecursiveAttnPooling(nn.Module):
         C = self.C0.unsqueeze(0).unsqueeze(0).expand(B, T, -1)  # [B, T, D]
 
         embeddings = []
-        stop = torch.zeros(B, dtype=torch.bool, device=h.device)
         count = 0
-        mask = torch.ones((B, 6), dtype=torch.bool, device=h.device)
         #DO INDIVIDUAL STOP FOR EACH OF THE ITEM IN BATCH
         '''
         KEEP A MASK VARIABLE AND APPLY THE MASK AT THE END
         '''
 
-        while not torch.all(stop).item() and count < 6:
+        while count < n_sp:
             # uniform init attention to compute initial mu/sigma
             a_init = torch.ones(B, T, 1, device=h.device) / T
             mu, sigma = self.weighted_stats(h, a_init)
@@ -154,30 +124,14 @@ class RecursiveAttnPooling(nn.Module):
             # update coverage
  
             C = C + a
-
-            # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
-
-            # stopping
-            p = self.calculate_p(a)  # [B]
-            # print("P is ", p)
-            th = torch.clamp(self.threshold_stop, 0.1, 0.9)
-            mask_indices = torch.where(p < self.threshold_stop)[0] 
-            if mask_indices.numel() > 0:
-                mask[mask_indices, count:] = 0
-            
-
-            self.probabilities.append(p)
-            stop = stop | (p < self.threshold_stop)
             count +=1
 
         #multiply self.probabilities with mask and embeddings with mask
 
         embeddings = torch.stack(embeddings, dim=1)  # [B, N, E]
-        probs = torch.stack(self.probabilities, dim=1)  # [B, N]
-        embeddings = embeddings * mask[:, :embeddings.size(1)].unsqueeze(-1)
 
 
-        return embeddings, probs
+        return embeddings
 
 
 def count_params(model):

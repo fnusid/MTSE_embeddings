@@ -68,10 +68,10 @@ class SpeakerEmbeddingModule(pl.LightningModule):
 
 
 
-    def forward(self, x):
-        emb, p = self.model(x)
+    def forward(self, x, n_sp):
+        emb = self.model(x, n_sp)
         # emb = emb.mean(dim = 1)
-        return emb, p
+        return emb
 
     def on_train_epoch_start(self):
         if hasattr(self.loss, "update_schedules"):
@@ -86,16 +86,18 @@ class SpeakerEmbeddingModule(pl.LightningModule):
             self.loss.loss_fn.update_schedules(self.current_epoch)
 
         noisy, labels = batch
+      
+        n_sp = [len(torch.argwhere(item == 1)) for item in labels][0]
         # x = noisy.mean(dim=1) #why?
-        emb, p = self(noisy)
-        total_loss, loss_dict = self.loss(emb, p, labels)
+        emb = self(noisy, n_sp)
+        total_loss = self.loss(emb, labels)
         # if batch_idx % 500 == 0:
         #     # 1️⃣ Backward pass first to populate gradients
         #     self._debug_loss_dict = loss_dict
 
-        # self.log("train/loss", total_loss, prog_bar=True, on_step=True, on_epoch=True)
-        for k, v in loss_dict.items():
-            self.log(f"train/{k}", v, prog_bar=False, on_step=True, on_epoch=True)
+        self.log("train/loss", total_loss, prog_bar=True, on_step=True, on_epoch=True)
+        # for k, v in loss_dict.items():
+        #     self.log(f"train/{k}", v, prog_bar=False, on_step=True, on_epoch=True)
  
 
         return total_loss
@@ -111,16 +113,14 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         # start = time.time()
         # breakpoint()
         noisy, labels = batch
-        emb, p = self(noisy)
+        
+        n_sp = [len(torch.argwhere(item == 1)) for item in labels][0]
+        emb= self(noisy, n_sp)
         # mid = time.time()
-        total_loss, loss_dict = self.loss(emb, p, labels)
+        total_loss = self.loss(emb, labels)
         # end = time.time()
         # print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
-        for k, v in loss_dict.items():
-            if k != "L_total":
-                self.log(f"val/{k}", v, prog_bar=False, on_step=False, on_epoch=True)
-            else:
-                self.log(f"val/loss", v, prog_bar=True, on_step=False, on_epoch=True)
+        self.log(f"val/loss", total_loss, prog_bar=False, on_step=False, on_epoch=True)
 
         return total_loss
     
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         enable_checkpointing=True,
         callbacks=[
             # EarlyStopping(monitor='val/loss', patience=20, mode='min'),
-            ModelCheckpoint(dirpath=f'/home/sidharth./codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
+            ModelCheckpoint(dirpath=f'/home/sidharth./codebase/speaker_embedding_codebase/ckpts/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
         ],
     )
     # trainer = pl.Trainer(
