@@ -1,6 +1,6 @@
 config_mode="paper"
 #model params
-model_name="mtse_embeddings_model_paper_1024_p0.5"
+model_name="mtse_embeddings_sp_count_check"
 C=1024
 d_model=1536
 dprime_model=1536
@@ -23,8 +23,8 @@ rir_probability=0.5,
 global_snr=(0, 40),
 sir_range = (-5, 5),
 peak_normalization=True,
-num_workers=10,
-batch_size=32)
+num_workers=20,
+batch_size=16)
 
 
 #metric params
@@ -54,10 +54,11 @@ enable_checkpointing=True
 # ckpt_path=None
 # ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=98-val/loss=11.17.ckpt"
-ckpt_path = None
+# ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_sp_count_check/best-checkpoint-epoch=08-val/loss=0.37.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=122-val/loss=12.45.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisyl_4sp/best-checkpoint-epoch=22-val/loss=14.83.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=110-val/loss=12.21.ckpt"
+ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_sp_count_check/best-checkpoint-epoch=67-val/loss=0.19.ckpt"
 lr=5e-4
 weight_decay=1e-5
 cycle_length = 20
@@ -68,4 +69,4 @@ base_lr_factor = 0.1
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="model_paper_1024_p0.5"
+model_name="model_sp_count_check"

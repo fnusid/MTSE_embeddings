@@ -185,11 +185,13 @@ class ArcFaceLoss(nn.Module):
                 L_cnt = -torch.log(p[1] + eps)
             elif S == 2 and p.size(0) > 1:
                 L_cnt = -torch.log(1 - p[1] + eps)
+                if L_cnt == np.inf or torch.isnan(L_cnt):
+                    print("p[1]: ", p[1])
+                    
 
             # ------------------------------------------------
             # (3) Total for this batch item (Eq.15)
-            # ------------------------------------------------
-            L_total = L_spk + self.alpha * L_cnt
+            # -----------------------------------------------
 
             L_spk_list.append(L_spk)
             L_cnt_list.append(L_cnt)
@@ -199,7 +201,7 @@ class ArcFaceLoss(nn.Module):
         # ------------------------------------------------
         L_spk_total = torch.stack(L_spk_list).mean()
         L_cnt_total = torch.stack(L_cnt_list).mean()
-        L_total_total = L_spk_total + self.alpha * L_cnt_total
+        L_total_total = self.alpha * 0.1*L_spk_total +  L_cnt_total
 
         return L_total_total, {
             "L_spk": L_spk_total,

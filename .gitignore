@@ -13,3 +13,6 @@ model_noisypaper_2sp/
 ckpts/
 model_noisypaper_2sp_1024/
 model_paper_1024_p0.5/
+model_sp_count_check/
+model_sp_loss_check/
+sp_count.txt
