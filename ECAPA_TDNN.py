@@ -165,6 +165,7 @@ class ECAPA_TDNN(nn.Module):
 
 
     def forward(self, x, aug):
+
         with torch.no_grad():
             x = self.torchfbank(x)+1e-6
             x = x.log()   

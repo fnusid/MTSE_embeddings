@@ -88,6 +88,7 @@ class RecursiveAttnPooling(nn.Module):
         x: input to encoder
         Returns: [B, N, E] embeddings (N speakers found)
         """
+
         if x.ndim ==3:
             x = x.mean(axis = 1)
         

@@ -106,7 +106,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/model_noisypaper_2sp/best-checkpoint-epoch=347-val/loss=10.32.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=104-val/loss=8.88.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     # labels, wavs1, wavs2 = get_audio_and_labels(txt_file=txt_path)
     dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/Libri2Mix/clean_2sp")
     dataloader = DataLoader(dataset, batch_size=8, shuffle=False,
-                        collate_fn=lambda x: collate_fn(x, max_len_sec=8.0, sr=16000))
+                        collate_fn=lambda x: collate_fn(x, max_len_sec=3.0, sr=16000))
     model = load_model()
 
     all_scores, all_labels, all_rows = [], [], []
@@ -199,9 +199,9 @@ if __name__ == '__main__':
         wav2 = batch["wav2"].to(device)
         labels = batch["label"].to(device)
         with torch.no_grad():
-  
-            emb1 = model(wav1)[0] #get only emb and not p # [B, n_sp, emb_dim]
-            emb2 = model(wav2)[0] #[B, n_sp, emb_dim]
+            breakpoint()
+            emb1 = model(wav1, 2) #get only emb and not p # [B, n_sp, emb_dim]
+            emb2 = model(wav2, 2) #[B, n_sp, emb_dim]
             if emb1.size(1) == 2 and emb2.size(1) ==2:
                 sp2 += 1
             elif emb1.size(1) == 6 and emb2.size(1) ==6:

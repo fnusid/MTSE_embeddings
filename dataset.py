@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 
 import ast
 from configs import paper_config as config
-
+from torch.utils.data import Sampler
 '''
 Speaker files
     - IDXXXX
@@ -39,6 +39,26 @@ def _worker_init_fn(worker_id: int):
     base_seed = torch.initial_seed() % 2**32
     np.random.seed(base_seed + worker_id)
     random.seed(base_seed + worker_id)
+
+from torch.utils.data import RandomSampler, BatchSampler
+
+class NSPBatchSampler(BatchSampler):
+    """Yields batches of (idx, n_sp) tuples, so all samples in a batch share n_sp."""
+    def __init__(self, dataset, batch_size, drop_last, n_sp_max):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.n_sp_max = n_sp_max
+        self.base = BatchSampler(RandomSampler(dataset), batch_size, drop_last)
+
+    def __iter__(self):
+        for batch_indices in self.base:
+            n_sp = random.randint(1, self.n_sp_max)
+            yield [(idx, n_sp) for idx in batch_indices]
+
+    def __len__(self):
+        return len(self.base)
+
 
 
 def collate_pair(batch):
@@ -106,6 +126,7 @@ class SpeakerIdentification(Dataset):
         **kwargs: Any,
     ):
         super().__init__()
+        self.current_n_sp = 1
         self.speeches = speeches
         self.speech_ids = list(speeches.keys())
         self.num_classes = len(self.speech_ids)
@@ -291,7 +312,7 @@ class SpeakerIdentification(Dataset):
         # return sum(len(v) for v in self.speeches.values())
         return 10_000
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, item):
         '''
         Modify here to return different speaker labels
         numpy
@@ -303,8 +324,13 @@ class SpeakerIdentification(Dataset):
         
 
         '''
+        if isinstance(item, tuple):
+            idx, n_sp = item
+            # print("idx, n_sp:", idx, n_sp)
+        else:
+            idx = item
+        # idx, n_sp = batch_info["indices"], batch_info["n_sp"]
         # n_sp = random.randint(1, self.N_max_speakers)
-        n_sp = self.current_n_sp
         # n_sp = self.N_max_speakers
         # n_sp = 2
         # n_sp = 1
@@ -506,14 +532,21 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
     def train_dataloader(self):
         use_workers = self.num_workers > 0
         # prefetch_factor must be omitted when num_workers == 0
+        batch_sampler = NSPBatchSampler(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            drop_last=True,
+            n_sp_max=self.dataset_kwargs.get("N_max_speakers", 2),
+        )
         kwargs = dict(
             dataset=self.train_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
+            batch_sampler=batch_sampler,
+            # batch_size=self.batch_size,
+            # shuffle=True,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=use_workers,
-            drop_last=True,
+            # drop_last=True,
             collate_fn=lambda b: collate_pair(b),
             timeout=0,
             worker_init_fn=_worker_init_fn,
@@ -521,26 +554,32 @@ class SpeakerIdentificationDM(pl.LightningDataModule):
         if use_workers:
             kwargs["prefetch_factor"] = 2  # good general default
         
-        self.train_dataset.current_n_sp = random.randint(1, self.dataset_kwargs.get("N_max_speakers"))
-        print(f"[DataLoader] Using n_sp = {self.train_dataset.current_n_sp} for this batch/epoch")
+        # self.train_dataset.current_n_sp = random.randint(1, self.dataset_kwargs.get("N_max_speakers"))
+        # print(f"[DataLoader] Using n_sp = {self.train_dataset.current_n_sp} for this batch/epoch")
+
         return DataLoader(**kwargs)
 
     def val_dataloader(self):
-
-        self.val_dataset.current_n_sp = random.randint(1, self.dataset_kwargs.get("N_max_speakers"))
-        print(f"[DataLoader] Using n_sp = {self.val_dataset.current_n_sp} for this batch/epoch")        # keep workers at 0 during sanity check to avoid pickling issues in some envs
+        batch_sampler = NSPBatchSampler(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            drop_last=False,
+            n_sp_max=self.dataset_kwargs.get("N_max_speakers", 2),
+        )
 
         return DataLoader(
             self.val_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
+            batch_sampler=batch_sampler,
+            # batch_size=self.batch_size,
+            # shuffle=False,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=False,
-            drop_last=False,
+            # drop_last=False,
             collate_fn=lambda b: collate_pair(b),
             timeout=0,
             worker_init_fn=_worker_init_fn,
+
         )
 
 

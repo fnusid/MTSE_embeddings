@@ -89,6 +89,7 @@ class SpeakerEmbeddingModule(pl.LightningModule):
       
         n_sp = [len(torch.argwhere(item == 1)) for item in labels][0]
         # x = noisy.mean(dim=1) #why?
+        # print(f"n_sp: {n_sp}")
         emb = self(noisy, n_sp)
         total_loss = self.loss(emb, labels)
         # if batch_idx % 500 == 0:
@@ -115,6 +116,7 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         noisy, labels = batch
         
         n_sp = [len(torch.argwhere(item == 1)) for item in labels][0]
+        # print("n_sp: ", n_sp)
         emb= self(noisy, n_sp)
         # mid = time.time()
         total_loss = self.loss(emb, labels)

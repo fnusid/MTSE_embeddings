@@ -150,8 +150,8 @@ class ArcFaceLoss(nn.Module):
                     C[i, n] = self.arcface_ce(pred_embs[b][n].unsqueeze(0), spk_ids[i])
 
 
-            if not torch.isfinite(C).all():
-                C = torch.nan_to_num(C, nan=1e6, posinf=1e6, neginf=1e6)
+            # if not torch.isfinite(C).all():
+            #     C = torch.nan_to_num(C, nan=1e6, posinf=1e6, neginf=1e6)
 
             # Hungarian min over permutations
             row_ind, col_ind = linear_sum_assignment(C.detach().cpu().numpy())
