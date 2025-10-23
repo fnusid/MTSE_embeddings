@@ -43,16 +43,16 @@ loss_params=dict(
 
 
 #Trainer params
-max_epochs=250
+max_epochs=1000
 devices=[0]
 check_val_every_n_epoch=2
 log_every_n_steps=10
 gradient_clip_val=0.8
 enable_checkpointing=True
-# ckpt_path=None
+ckpt_path=None
 # ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=98-val/loss=11.17.ckpt"
-ckpt_path = None
+# ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=248-val/loss=8.37.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisy_2sp/best-checkpoint-epoch=122-val/loss=12.45.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_noisyl_4sp/best-checkpoint-epoch=22-val/loss=14.83.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=110-val/loss=12.21.ckpt"

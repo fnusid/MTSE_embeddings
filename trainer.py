@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore", module="torchaudio")
 torch.set_float32_matmul_precision("high")
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
-
+pl.seed_everything(42, workers=True)
 
 def debug_gradients_and_losses(model, loss_dict):
     """
@@ -130,6 +130,28 @@ class SpeakerEmbeddingModule(pl.LightningModule):
     #     optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
     #     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=self.lr / 10)
     #     return {"optimizer": optimizer, "lr_scheduler": scheduler}
+    def on_load_checkpoint(self, checkpoint):
+        # cache the epoch saved in the ckpt (e.g., 248)
+        self._restored_epoch = int(checkpoint.get("epoch", 0))
+        # immediately sync ArcFace schedules to the restored epoch
+        if hasattr(self.loss.loss_fn, "update_schedules"):
+            self.loss.loss_fn.update_schedules(self._restored_epoch)
+            print(f"[on_load_checkpoint] ArcFace m/s restored for epoch {self._restored_epoch}: "
+                f"m={self.loss.loss_fn.m:.3f}, s={self.loss.loss_fn.s:.2f}")
+
+    def on_train_start(self):
+        # ensure schedules are correct even if Lightning set current_epoch oddly
+        if hasattr(self.loss.loss_fn, "update_schedules") and hasattr(self, "_restored_epoch"):
+            self.loss.loss_fn.update_schedules(self._restored_epoch)
+            print(f"[on_train_start] ArcFace m/s synced to epoch {self._restored_epoch}: "
+                f"m={self.loss.loss_fn.m:.3f}, s={self.loss.loss_fn.s:.2f}")
+
+    def on_validation_start(self):
+        # validate-only runs have current_epoch=0; pin to restored epoch
+        if hasattr(self.loss.loss_fn, "update_schedules") and hasattr(self, "_restored_epoch"):
+            self.loss.loss_fn.update_schedules(self._restored_epoch)
+            print(f"[on_validation_start] ArcFace m/s synced to epoch {self._restored_epoch}: "
+                f"m={self.loss.loss_fn.m:.3f}, s={self.loss.loss_fn.s:.2f}")
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
@@ -221,7 +243,7 @@ if __name__ == "__main__":
     #     log_every_n_steps=1,
     #     enable_checkpointing=False
     # )
-
-    trainer.fit(model, dm, ckpt_path= config.ckpt_path)
+    trainer.validate(model, datamodule=dm, ckpt_path=config.ckpt_path)
+    # trainer.fit(model, dm, ckpt_path= config.ckpt_path)
 
     wandb.finish()
