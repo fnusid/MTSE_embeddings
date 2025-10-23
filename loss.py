@@ -17,6 +17,7 @@ class LossWrapper(nn.Module):
         super().__init__()  
         config = kwargs.get("config")
         self.loss_name = kwargs.get("loss_name")
+
         if self.loss_name == 'MagFace':
             self.loss_fn = MagFaceLoss(n_class = num_class, alpha=kwargs.get("alpha"), beta = kwargs.get("beta"), 
                                 s=kwargs.get("s"), lmbda=kwargs.get("lmbda"), gamma=kwargs.get("gamma"), low=kwargs.get("low"), high=kwargs.get("high"),
