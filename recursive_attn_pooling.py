@@ -120,6 +120,9 @@ class RecursiveAttnPooling(nn.Module):
             emb = self.w0(torch.cat([mu_post, sigma_post], dim=-1))  # [B, E]
             #normalize the embeddings because ArcFace assumes embeddings lie on a unit hypersphere
             emb = F.normalize(emb, dim = -1)
+            if torch.isnan(emb).any():
+                print("NaN in embeddings!")
+                breakpoint()
             embeddings.append(emb)
 
             # update coverage

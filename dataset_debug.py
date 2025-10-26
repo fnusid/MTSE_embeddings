@@ -92,14 +92,14 @@ def collate_pair(batch):
 
     return noisy, labels
 
-def db_to_ratio(db):
-    """Convert dB value to linear amplitude ratio."""
-    return 10 ** (db / 20)
+# def db_to_ratio(db):
+#     """Convert dB value to linear amplitude ratio."""
+#     return 10 ** (db / 20)
 
-def set_signal_energy(x, target_energy):
-    """Scale tensor so that its RMS energy equals target_energy."""
-    rms = torch.sqrt(torch.mean(x ** 2) + 1e-8)
-    return x * (target_energy / (rms + 1e-8))
+# def set_signal_energy(x, target_energy):
+#     """Scale tensor so that its RMS energy equals target_energy."""
+#     rms = torch.sqrt(torch.mean(x ** 2) + 1e-8)
+#     return x * (target_energy / (rms + 1e-8))
 
 
 # ---------------------------
@@ -161,151 +161,182 @@ class SpeakerIdentification(Dataset):
 
     # -------- I/O utils --------
 
-    def _get_resampler(self, src_sr: int) -> Optional[torchaudio.transforms.Resample]:
-        if src_sr == self.sr:
-            return None
-        key = (src_sr, self.sr)
-        rs = self._resampler_cache.get(key)
-        if rs is None:
-            # torchscript-friendly, fast resampler
-            rs = torchaudio.transforms.Resample(src_sr, self.sr)
-            self._resampler_cache[key] = rs
-        return rs
+    # def _get_resampler(self, src_sr: int) -> Optional[torchaudio.transforms.Resample]:
+    #     if src_sr == self.sr:
+    #         return None
+    #     key = (src_sr, self.sr)
+    #     rs = self._resampler_cache.get(key)
+    #     if rs is None:
+    #         # torchscript-friendly, fast resampler
+    #         rs = torchaudio.transforms.Resample(src_sr, self.sr)
+    #         self._resampler_cache[key] = rs
+    #     return rs
 
 
-    def _load_wav_mono(self, paths: List[str], length=None, noise=None, n_sp=None) -> torch.Tensor:
+    ## simple function to load wav
+    def load_audio(self, path: List[str], length=None, n_sp=None):
         wavs = []
-        for idx, path in enumerate(paths):
+        for idx, p in enumerate(path):
             if n_sp is not None and idx >= n_sp:
                 break
-            # breakpoint()
-
-            wav, sr = torchaudio.load(path)  # (C, T)
-
+            
+            wav, sr = torchaudio.load(p)  # (C, T)
             if wav.dim() == 2 and wav.size(0) > 1:
                 wav = wav[0:1]  # take first channel
+            
             wav = wav.squeeze(0).to(torch.float32)
-            rs = self._get_resampler(sr)
-            if rs is not None:
-                wav = rs(wav.unsqueeze(0)).squeeze(0)
-            if noise is None and length is None:
+
+            if sr != self.sr:
+                wav = torchaudio.transforms.Resample(sr, self.sr)(wav.unsqueeze(0)).squeeze(0)
+                sr = self.sr
+            
+            if wav.size(-1) != int(self.desired_duration * self.sr):
                 if len(wav) < int(self.desired_duration * self.sr): #for speech
                     rem = int(self.desired_duration * self.sr) - len(wav)
                     wav = F.pad(wav, (rem//2, rem - rem//2))
                 elif len(wav) > int(self.desired_duration * self.sr):
                     wav = wav[:int(self.desired_duration * self.sr)]
-                
-            if length is not None and noise is not None:
-                # breakpoint()
-                len_wav = sum(len(item) for item in wavs) if len(wavs)>0 else 0
-                if len_wav > length:
-                    wavs = torch.cat(wavs, dim=0)
-                    return wavs[:length]
             
             wavs.append(wav)
+
+        return torch.sum(torch.stack(wavs, dim=0), dim=0)
+            
+
+
+
+    # def _load_wav_mono(self, paths: List[str], length=None, noise=None, n_sp=None) -> torch.Tensor:
+    #     wavs = []
+    #     for idx, path in enumerate(paths):
+    #         if n_sp is not None and idx >= n_sp:
+    #             break
+    #         # breakpoint()
+
+    #         wav, sr = torchaudio.load(path)  # (C, T)
+
+    #         if wav.dim() == 2 and wav.size(0) > 1:
+    #             wav = wav[0:1]  # take first channel
+    #         wav = wav.squeeze(0).to(torch.float32)
+    #         rs = self._get_resampler(sr)
+    #         if rs is not None:
+    #             wav = rs(wav.unsqueeze(0)).squeeze(0)
+    #         if noise is None and length is None:
+    #             if len(wav) < int(self.desired_duration * self.sr): #for speech
+    #                 rem = int(self.desired_duration * self.sr) - len(wav)
+    #                 wav = F.pad(wav, (rem//2, rem - rem//2))
+    #             elif len(wav) > int(self.desired_duration * self.sr):
+    #                 wav = wav[:int(self.desired_duration * self.sr)]
+                
+    #         if length is not None and noise is not None:
+    #             # breakpoint()
+    #             len_wav = sum(len(item) for item in wavs) if len(wavs)>0 else 0
+    #             if len_wav > length:
+    #                 wavs = torch.cat(wavs, dim=0)
+    #                 return wavs[:length]
+            
+    #         wavs.append(wav)
         
-        if n_sp is not None and n_sp < self.N_max_speakers:
-            #padd with zeros in between each wav in a randomized manner
-            wavs_padded = []
-            chunk_indices = torch.arange(int(self.total_desired_duration/self.desired_duration))
+        # if n_sp is not None and n_sp < self.N_max_speakers:
+        #     #padd with zeros in between each wav in a randomized manner
+        #     wavs_padded = []
+        #     chunk_indices = torch.arange(int(self.total_desired_duration/self.desired_duration))
 
-            chosen_indices = random.sample(list(chunk_indices), n_sp)
-            chosen_indices = [it.item() for it in chosen_indices]
-            chosen_indices.sort()
-            rest_indices = list(set(chunk_indices.tolist()) - set(chosen_indices))
-            for i, idx in enumerate(chunk_indices):
-                if idx in chosen_indices:
-                    wavs_padded.append(wavs[chosen_indices.index(idx)])
-                else:
-                    wavs_padded.append(torch.zeros(int(self.desired_duration * self.sr), device=wavs[0].device))
-            wavs = wavs_padded
+        #     chosen_indices = random.sample(list(chunk_indices), n_sp)
+        #     chosen_indices = [it.item() for it in chosen_indices]
+        #     chosen_indices.sort()
+        #     rest_indices = list(set(chunk_indices.tolist()) - set(chosen_indices))
+        #     for i, idx in enumerate(chunk_indices):
+        #         if idx in chosen_indices:
+        #             wavs_padded.append(wavs[chosen_indices.index(idx)])
+        #         else:
+        #             wavs_padded.append(torch.zeros(int(self.desired_duration * self.sr), device=wavs[0].device))
+        #     wavs = wavs_padded
 
     
-        wavs = torch.stack(wavs, dim=0)
+        # wavs = torch.stack(wavs, dim=0)
 
-        return wavs
+        # return wavs
 
-    def _load_rir(self, path: str, n_sp: int) -> torch.Tensor:
-        if path in self._rir_cache:
-            return self._rir_cache[path]
-        rir, sr = torchaudio.load(path)  # (C, T)
-        rir = rir.reshape(2, -1, rir.size(-1))  # (mics=2, srcs, T)
-        # breakpoint()
-        #randomly sample random n_sp samples from the rir if more than n_sp
-        if rir.dim() == 3 and rir.size(1) > n_sp:
-            indices = random.sample(range(rir.size(1)), 4)
-            rir = rir[:, indices, :]
+    # def _load_rir(self, path: str, n_sp: int) -> torch.Tensor:
+    #     if path in self._rir_cache:
+    #         return self._rir_cache[path]
+    #     rir, sr = torchaudio.load(path)  # (C, T)
+    #     rir = rir.reshape(2, -1, rir.size(-1))  # (mics=2, srcs, T)
+    #     # breakpoint()
+    #     #randomly sample random n_sp samples from the rir if more than n_sp
+    #     if rir.dim() == 3 and rir.size(1) > n_sp:
+    #         indices = random.sample(range(rir.size(1)), 4)
+    #         rir = rir[:, indices, :]
     
-        rir = rir.to(torch.float32)
-        rs = self._get_resampler(sr)
-        if rs is not None:
-            rir = rs(rir.unsqueeze(0)).squeeze(0)
-        # optional cap for speed (e.g., 0.5 s @ 16k -> 8000 taps)
-        if self.max_rir_seconds and self.max_rir_seconds > 0:
-            max_taps = int(self.max_rir_seconds * self.sr)
-            rir = rir[:, :, :max_taps]
-        self._rir_cache[path] = rir
-        return rir
+    #     rir = rir.to(torch.float32)
+    #     rs = self._get_resampler(sr)
+    #     if rs is not None:
+    #         rir = rs(rir.unsqueeze(0)).squeeze(0)
+    #     # optional cap for speed (e.g., 0.5 s @ 16k -> 8000 taps)
+    #     if self.max_rir_seconds and self.max_rir_seconds > 0:
+    #         max_taps = int(self.max_rir_seconds * self.sr)
+    #         rir = rir[:, :, :max_taps]
+    #     self._rir_cache[path] = rir
+    #     return rir
 
     # -------- DSP helpers --------
 
-    @staticmethod
-    def _fft_convolve_same_len(x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
-        """
-        Fast convolution via FFT, returning first len(x) samples.
-        x, h: (T,)
-        """
-        T = x.numel()
-        n = T + h.numel() - 1
-        nfft = 1 << (n - 1).bit_length()  # next power of two
+    # @staticmethod
+    # def _fft_convolve_same_len(x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     Fast convolution via FFT, returning first len(x) samples.
+    #     x, h: (T,)
+    #     """
+    #     T = x.numel()
+    #     n = T + h.numel() - 1
+    #     nfft = 1 << (n - 1).bit_length()  # next power of two
 
-        X = torch.fft.rfft(x, n=nfft)
-        H = torch.fft.rfft(h, n=nfft)
-        y = torch.fft.irfft(X * H, n=nfft)[:T]
-        return y
+    #     X = torch.fft.rfft(x, n=nfft)
+    #     H = torch.fft.rfft(h, n=nfft)
+    #     y = torch.fft.irfft(X * H, n=nfft)[:T]
+    #     return y
 
 
-    @staticmethod
-    def _add_noise_at_snr(speech: torch.Tensor, noise: torch.Tensor, snr_db: float) -> torch.Tensor:
-        sp = speech.pow(2).mean().clamp_min(1e-10)
-        npow = noise.pow(2).mean().clamp_min(1e-10)
-        snr_lin = 10.0 ** (snr_db / 10.0)
-        req_np = sp / snr_lin
-        scale = (req_np / npow).sqrt()
-        return speech + noise * scale
+    # @staticmethod
+    # def _add_noise_at_snr(speech: torch.Tensor, noise: torch.Tensor, snr_db: float) -> torch.Tensor:
+    #     sp = speech.pow(2).mean().clamp_min(1e-10)
+    #     npow = noise.pow(2).mean().clamp_min(1e-10)
+    #     snr_lin = 10.0 ** (snr_db / 10.0)
+    #     req_np = sp / snr_lin
+    #     scale = (req_np / npow).sqrt()
+    #     return speech + noise * scale
 
-    @staticmethod
-    def _mix_overlap_add(signals, overlap_ratio):
-        '''
-        signals: list of 1D tensors
-        overlap_ratio: float between 0 and 1
-        '''
+    # @staticmethod
+    # def _mix_overlap_add(signals, overlap_ratio):
+    #     '''
+    #     signals: list of 1D tensors
+    #     overlap_ratio: float between 0 and 1
+    #     '''
 
-        if len(signals)==0:
-            return torch.tensor([])
-        elif len(signals)==1:
-            return signals[0]
-        else:
-            overlap_area = int(signals[0].shape[-1] * overlap_ratio)
-            overlapped_signals = []
-            for i in range(len(signals)):
-                if i==0:
-                    overlapped_signals.append(signals[i])
-                else:
-                    previous = overlapped_signals[i-1]
-                    current = signals[i]
-                    if overlap_area > 0:
-                        new_signal = torch.zeros((2,previous.shape[-1] + current.shape[-1] - overlap_area,), device=previous.device)
-                        new_signal[:, :previous.shape[-1]-overlap_area] = previous[:, :previous.shape[-1]-overlap_area]
-                        new_signal[:, previous.shape[-1]-overlap_area:previous.shape[-1]] = previous[:, previous.shape[-1]-overlap_area:] + current[ :overlap_area]
-                        new_signal[:, previous.shape[-1]:] = current[:, overlap_area:]
-                        overlapped_signals.append(new_signal)
-                    else:
-                        new_signal = torch.zeros((previous.shape[-1] + current.shape[-1],), device=previous.device)
-                        new_signal[:, :previous.shape[-1]] = previous
-                        new_signal[:, previous.shape[-1]:] = current
-                        overlapped_signals.append(new_signal)
-            return overlapped_signals[-1]
+    #     if len(signals)==0:
+    #         return torch.tensor([])
+    #     elif len(signals)==1:
+    #         return signals[0]
+    #     else:
+    #         overlap_area = int(signals[0].shape[-1] * overlap_ratio)
+    #         overlapped_signals = []
+    #         for i in range(len(signals)):
+    #             if i==0:
+    #                 overlapped_signals.append(signals[i])
+    #             else:
+    #                 previous = overlapped_signals[i-1]
+    #                 current = signals[i]
+    #                 if overlap_area > 0:
+    #                     new_signal = torch.zeros((2,previous.shape[-1] + current.shape[-1] - overlap_area,), device=previous.device)
+    #                     new_signal[:, :previous.shape[-1]-overlap_area] = previous[:, :previous.shape[-1]-overlap_area]
+    #                     new_signal[:, previous.shape[-1]-overlap_area:previous.shape[-1]] = previous[:, previous.shape[-1]-overlap_area:] + current[ :overlap_area]
+    #                     new_signal[:, previous.shape[-1]:] = current[:, overlap_area:]
+    #                     overlapped_signals.append(new_signal)
+    #                 else:
+    #                     new_signal = torch.zeros((previous.shape[-1] + current.shape[-1],), device=previous.device)
+    #                     new_signal[:, :previous.shape[-1]] = previous
+    #                     new_signal[:, previous.shape[-1]:] = current
+    #                     overlapped_signals.append(new_signal)
+    #         return overlapped_signals[-1]
 
     # -------- Dataset API --------
 
@@ -349,64 +380,69 @@ class SpeakerIdentification(Dataset):
         vec[sp_labels] = 1.0
         nz_path = self.noise #[list of noise files]
         rr_path = self.rir[idx % len(self.rir)]
-        speech = self._load_wav_mono(sp_path, n_sp=n_sp) #[n_sp, wav]
-        if speech.shape[0] == 1:
-            speech = speech.unsqueeze(0) #[1, wav]
+        # speech = self._load_wav_mono(sp_path, n_sp=n_sp) #[n_sp, wav]
+        ## load the speeches
+        speech = self.load_audio(sp_path, n_sp=n_sp) #[wav] #summed speech
+
+        noisy = speech
+    
+        # if speech.shape[0] == 1:
+        #     speech = speech.unsqueeze(0) #[1, wav]
         
-        if config.config_mode == "paper" and n_sp ==2:
-            sir_range = config.dataset_params.get("sir_range", (-5,5))  # dB
-            sir_db = random.uniform(*sir_range)
-            sir_ratio = db_to_ratio(sir_db)
+        # if config.config_mode == "paper" and n_sp ==2:
+        #     sir_range = config.dataset_params.get("sir_range", (-5,5))  # dB
+        #     sir_db = random.uniform(*sir_range)
+        #     sir_ratio = db_to_ratio(sir_db)
 
-            speech[0] = set_signal_energy(speech[0], 1.0)
-            speech[1] = set_signal_energy(speech[1], 1.0 / (sir_ratio + 1e-8))  # adjust relative loudness
+        #     speech[0] = set_signal_energy(speech[0], 1.0)
+        #     speech[1] = set_signal_energy(speech[1], 1.0 / (sir_ratio + 1e-8))  # adjust relative loudness
 
 
 
-        #add rir with a probability
-        if np.random.rand() < self.rir_probability:
-        # if 0 < self.rir_probability: #always add rir
-            rir = self._load_rir(rr_path, n_sp = n_sp) #[n_mics, n_sources, T]
-            convolved_speeches = []
-            # breakpoint()
-            for i in range(len(speech)):
-                speech_mic1 = self._fft_convolve_same_len(speech[i], rir[0][i])
-                speech_mic2 = self._fft_convolve_same_len(speech[i], rir[1][i])
+        # #add rir with a probability
+        # if np.random.rand() < self.rir_probability:
+        # # if 0 < self.rir_probability: #always add rir
+        #     rir = self._load_rir(rr_path, n_sp = n_sp) #[n_mics, n_sources, T]
+        #     convolved_speeches = []
+        #     # breakpoint()
+        #     for i in range(len(speech)):
+        #         speech_mic1 = self._fft_convolve_same_len(speech[i], rir[0][i])
+        #         speech_mic2 = self._fft_convolve_same_len(speech[i], rir[1][i])
 
-                #cap the lrngth to min of both mics
-                min_len = min(speech_mic1.numel(), speech_mic2.numel())
-                speech_mic1 = speech_mic1[:min_len]
-                speech_mic2 = speech_mic2[:min_len]
-                #use both binaural mics
-                convolved_speeches.append(torch.cat([speech_mic1.unsqueeze(0), speech_mic2.unsqueeze(0)], dim=0)) #dim: [2, T]
-            speech = torch.stack(convolved_speeches, dim=0) #dim: [n_sp, 2, T]
-        else:
-            #duplicate the single channel to make it binaural
-            speech = torch.stack([speech, speech], dim=1) #dim: [n_sp, 2, T]
+        #         #cap the lrngth to min of both mics
+        #         min_len = min(speech_mic1.numel(), speech_mic2.numel())
+        #         speech_mic1 = speech_mic1[:min_len]
+        #         speech_mic2 = speech_mic2[:min_len]
+        #         #use both binaural mics
+        #         convolved_speeches.append(torch.cat([speech_mic1.unsqueeze(0), speech_mic2.unsqueeze(0)], dim=0)) #dim: [2, T]
+        #     speech = torch.stack(convolved_speeches, dim=0) #dim: [n_sp, 2, T]
+        # else:
+        #     #duplicate the single channel to make it binaural
+        #     speech = torch.stack([speech, speech], dim=1) #dim: [n_sp, 2, T]
                 
 
-        #combine speeches with the given overlap ratio
-        if np.random.rand() < self.overlap_prob:
-        # if 0 < self.overlap_prob: #always overlap
-            overlap_ratio = np.random.uniform(0, self.overlap_ratio)
+        # #combine speeches with the given overlap ratio
+        # if np.random.rand() < self.overlap_prob:
+        # # if 0 < self.overlap_prob: #always overlap
+        #     overlap_ratio = np.random.uniform(0, self.overlap_ratio)
 
-            speech = self._mix_overlap_add([speech[i] for i in range(len(speech))], self.overlap_ratio)  #[T]
+        #     speech = self._mix_overlap_add([speech[i] for i in range(len(speech))], self.overlap_ratio)  #[T]
 
-        else:
-            speech = speech.transpose(0, 1).reshape(2, -1) 
+        # else:
+        #     speech = speech.transpose(0, 1).reshape(2, -1) 
 
 
-        # breakpoint()
+        # # breakpoint()
 
-        noise = self._load_wav_mono(nz_path, length=speech.shape[-1], noise=True) #gets noise as long as speech
+        # noise = self._load_wav_mono(nz_path, length=speech.shape[-1], noise=True) #gets noise as long as speech
 
-        if random.random() < self.add_noise_prob:
-            snr = random.uniform(self.global_snr_range[0], self.global_snr_range[1])
-            noisy = self._add_noise_at_snr(speech, noise, snr)
-        else:
-            noisy = speech
-        if self.peak_normalize:
-            noisy = noisy / noisy.max(axis = -1)[0].unsqueeze(-1) #get only the max values and not indices
+        # if random.random() < self.add_noise_prob:
+        #     snr = random.uniform(self.global_snr_range[0], self.global_snr_range[1])
+        #     noisy = self._add_noise_at_snr(speech, noise, snr)
+        # else:
+        #     noisy = speech
+        # if self.peak_normalize:
+        #     noisy = noisy / noisy.max(axis = -1)[0].unsqueeze(-1) #get only the max values and not indices
         
         '''
         noisy will be max of length 8*4 = 32 seconds
@@ -592,9 +628,9 @@ if __name__ == "__main__":
     # expects lists of file paths; change these if you want to run locally
     # breakpoint()
     import ast
-    speeches_list = "/nfs/turbo/coe-profdj/txts/voxceleb_train.txt"
-    noise_list = "/nfs/turbo/coe-profdj/txts/noise.txt"
-    rir_list = "/nfs/turbo/coe-profdj/txts/rirs_dev.txt"
+    speeches_list = "/mnt/disks/data/datasets/txts/paper_config/voxceleb_train.txt"
+    noise_list = "/mnt/disks/data/datasets/txts/noise.txt"
+    rir_list = "/mnt/disks/data/datasets/txts/rirs_dev.txt"
     # breakpoint()
     dataset = SpeakerIdentificationDM(
         speeches_list = speeches_list,
@@ -626,18 +662,19 @@ if __name__ == "__main__":
     # Get one batch from the dataloader
     dataset.setup()
     dl = dataset.train_dataloader()
-
+    # breakpoint()
     for i, (noisy, labels) in enumerate(dl):
         print("noisy:", noisy.shape, "labels:", labels.shape)
         # noisy shape: [B, 2, T] (binaural)
         # labels shape: [B, num_classes]
         for j in range(min(10, noisy.size(0))):
-            wav = noisy[j]  # [2, T]
+            wav = noisy[j]  # [T]
             # Peak normalize again for safe saving
+            # breakpoint()
             wav = wav / wav.abs().max()
             torchaudio.save(
                 os.path.join(save_dir, f"sample_{i:02d}_{j:02d}.wav"),
-                wav.cpu(),
+                wav.unsqueeze(0).cpu(),
                 sample_rate=dataset.train_dataset.sr
             )
             print(f"Saved {save_dir}/sample_{i:02d}_{j:02d}.wav | active speakers: {labels[j].sum().item():.0f}")

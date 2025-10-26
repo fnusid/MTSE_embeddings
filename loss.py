@@ -71,25 +71,25 @@ class ArcFaceLoss(nn.Module):
 
     def update_schedules(self, epoch: int):
         """Dynamically update margin and scale."""
-        if config.config_mode != "paper":
-            self.m = config.loss_params.get("m")
-            self.s = config.loss_params.get("s")
-            return
-        else:
-            # Margin: linear warmup
-            if epoch < self.m_warmup:
-                self.m = self.m_min + (self.m_max - self.m_min) * (epoch / self.m_warmup)
-            else:
-                self.m = self.m_max
+        # if config.config_mode != "paper":
+        self.m = config.loss_params.get("m")
+        self.s = config.loss_params.get("s")
+            # return
+        # else:
+        #     # Margin: linear warmup
+        #     if epoch < self.m_warmup:
+        #         self.m = self.m_min + (self.m_max - self.m_min) * (epoch / self.m_warmup)
+        #     else:
+        #         self.m = self.m_max
 
-            # Scale: cosine decay
-            if epoch > self.s_decay_start:
-                progress = (epoch - self.s_decay_start) / 50  # spread over 50 epochs
-                self.s = self.s_max - (self.s_max - self.s_min) * (
-                    0.5 * (1 - math.cos(math.pi * min(progress, 1.0)))
-                )
-            else:
-                self.s = self.s_max
+        #     # Scale: cosine decay
+        #     if epoch > self.s_decay_start:
+        #         progress = (epoch - self.s_decay_start) / 50  # spread over 50 epochs
+        #         self.s = self.s_max - (self.s_max - self.s_min) * (
+        #             0.5 * (1 - math.cos(math.pi * min(progress, 1.0)))
+        #         )
+        #     else:
+        #         self.s = self.s_max
 
     def arcface_ce(self, x, label):
         x = F.normalize(x, dim=-1, eps=1e-6)
@@ -131,6 +131,8 @@ class ArcFaceLoss(nn.Module):
         
         device = pred_embs.device
         B, N, D = pred_embs.shape
+        if not torch.isfinite(pred_embs).all():
+            print("NaN in embeddings! step:", self.global_step)
         gt_labels = [np.argwhere(item.cpu() == 1).ravel().tolist() for item in gt_labels]
 
         L_spk_list = []
@@ -171,6 +173,7 @@ class ArcFaceLoss(nn.Module):
             # ------------------------------------------------
             L_total = L_spk 
 
+
             L_spk_list.append(L_spk)
 
         # ------------------------------------------------
@@ -178,7 +181,11 @@ class ArcFaceLoss(nn.Module):
         # ------------------------------------------------
         L_spk_total = torch.stack(L_spk_list).mean()
         L_total_total = L_spk_total
-
+        if L_total_total == 8.88255:
+            print("debug")
+            print("pred_embs:", pred_embs)
+            
+            breakpoint()
         return L_total_total
 
 

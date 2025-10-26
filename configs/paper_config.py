@@ -1,6 +1,6 @@
 config_mode="paper"
 #model params
-model_name="mtse_embeddings_paper_oracle_speakers"
+model_name="mtse_embeddings_paper_oracle_2nsp_nandebug"
 C=1024
 d_model=1536
 dprime_model=1536
@@ -11,7 +11,7 @@ dataset_params= dict(
 speeches_list = "/mnt/disks/data/datasets/txts/paper_config/voxceleb_train.txt",
 noise_list = "/mnt/disks/data/datasets/txts/noise.txt",
 rir_list = "/mnt/disks/data/datasets/txts/rirs_dev.txt",
-N_max_speakers=2,
+N_max_speakers=2, #changed to 1 for basic of the basic configuration
 overlap_ratio=1.0,
 desired_duration=3.0,
 sr=16000,
@@ -43,7 +43,7 @@ loss_params=dict(
 
 
 #Trainer params
-max_epochs=1000
+max_epochs=1000 #change it back to 1000, right now basic of the basic configuration
 devices=[0]
 check_val_every_n_epoch=2
 log_every_n_steps=10
@@ -67,4 +67,4 @@ base_lr_factor = 0.1
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="paper_oracle_speakers"
+model_name="paper_oracle_speakers_2nsp_nandebug"

@@ -14,14 +14,6 @@ from torch.utils.data import Dataset, DataLoader
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
-def db_to_ratio(db):
-    """Convert dB value to linear amplitude ratio."""
-    return 10 ** (db / 20)
-
-def set_signal_energy(x, target_energy):
-    """Scale tensor so that its RMS energy equals target_energy."""
-    rms = torch.sqrt(torch.mean(x ** 2) + 1e-8)
-    return x * (target_energy / (rms + 1e-8))
 
 class SpeakerVerificationDataset(Dataset):
     def __init__(self, trials_txt, base_dir, target_sr=16000):
@@ -38,14 +30,13 @@ class SpeakerVerificationDataset(Dataset):
         # Read file lines
         self.samples = []
         with open(trials_txt, "r") as f:
-            reader = json.load(f)
-            for parts in reader:
-              
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 3:
+                    continue  # skip invalid lines
                 label = int(parts[0])
                 path1 = f"{base_dir}/{parts[1]}"
-                path2 = []
-                for item in parts[2]:
-                    path2.append(f"{base_dir}/{item}")
+                path2 = f"{base_dir}/{parts[2]}"
                 self.samples.append((label, path1, path2))
 
     def __len__(self):
@@ -56,18 +47,7 @@ class SpeakerVerificationDataset(Dataset):
 
         # Load both audios
         wav1, sr1 = torchaudio.load(path1)
-        wav2_1, sr2 = torchaudio.load(path2[0])
-        wav2_2, sr2 = torchaudio.load(path2[1])
-
-        sir_db = np.random.uniform(-5,5)
-        sir_ratio = db_to_ratio(sir_db)
-        wav2_1 = set_signal_energy(wav2_1, 1.0)
-        wav2_2 = set_signal_energy(wav2_2, 1.0 / (sir_ratio + 1e-8))  # adjust relative loudness
-
-        min_len = min(wav2_1.size(1), wav2_2.size(1))
-        wav2_1 = wav2_1[:, :min_len]
-        wav2_2 = wav2_2[:, :min_len]
-        wav2 = wav2_1 + wav2_2
+        wav2, sr2 = torchaudio.load(path2)
 
         # Convert to mono
         wav1 = wav1.mean(dim=0, keepdim=True) if wav1.size(0) > 1 else wav1
@@ -126,7 +106,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=13-val/loss=8.88.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers_1nsp_nandebug/best-checkpoint-epoch=986-val/loss=2.81.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):
@@ -148,37 +128,27 @@ def load_model():
 
 def calculate_eer(scores, gt, num_thresholds=1000):
     """
-    Vectorized EER computation.
+    Vectorized Equal Error Rate computation.
 
     Args:
-        scores (torch.Tensor): shape (N, M)
-        gt (torch.Tensor): shape (N,)
-        num_thresholds (int): number of thresholds for interpolation
-
-    Returns:
-        eer (float): Equal Error Rate
-        threshold (float): corresponding threshold
+        scores (torch.Tensor): (N,) or (N, M)
+        gt (torch.Tensor): (N,)
     """
-    # 1️⃣ Collapse multi-candidate scores -> max per trial
-    max_scores = scores
+    # Ensure both tensors are 1D and on same device
+    if scores.ndim > 1:
+        scores = scores.max(dim=1)[0]  # collapse multi-candidate scores
 
-    # 2️⃣ Separate genuine and impostor scores
-    genuine_scores = max_scores[gt == 1]
-    imposter_scores = max_scores[gt == 0]
+    device = scores.device
+    genuine = scores[gt == 1]
+    impostor = scores[gt == 0]
 
-    # 3️⃣ Compute thresholds
-    thresholds = torch.linspace(max_scores.min(), max_scores.max(), num_thresholds).to('cuda')
+    thresholds = torch.linspace(scores.min(), scores.max(), num_thresholds, device=device)
+    far = (impostor[:, None] > thresholds[None, :]).float().mean(dim=0)
+    frr = (genuine[:, None] < thresholds[None, :]).float().mean(dim=0)
 
-    # 4️⃣ Vectorized comparison: shape (num_thresholds, )
-    # Broadcasting: each threshold is compared against all scores simultaneously
-    far = (imposter_scores[:, None] > thresholds[None, :]).float().mean(dim=0)
-    frr = (genuine_scores[:, None] < thresholds[None, :]).float().mean(dim=0)
-
-    # 5️⃣ Find index where |FAR - FRR| is minimum
     idx = torch.argmin(torch.abs(far - frr))
     eer = ((far[idx] + frr[idx]) / 2).item()
     threshold = thresholds[idx].item()
-
     return eer, threshold
 
 def calc_cosine_similarities(embs1, embs2):
@@ -190,7 +160,7 @@ def calc_cosine_similarities(embs1, embs2):
     embs1_norm = F.normalize(embs1, dim=-1)
     embs2_norm = F.normalize(embs2, dim=-1)
 
-    sim = torch.bmm(embs1_norm, embs2_norm.transpose(1, 2))
+    sim = F.cosine_similarity(embs1, embs2, dim=-1)
 
     return sim
 
@@ -199,41 +169,31 @@ def calc_cosine_similarities(embs1, embs2):
 
 if __name__ == '__main__':
 
-    txt_path = "/mnt/disks/data/datasets/Datasets/Vox1_sp_ver/paper_svm.json"
+    txt_path = "/mnt/disks/data/datasets/Datasets/Vox1_sp_ver/svs.txt"
 
     # labels, wavs1, wavs2 = get_audio_and_labels(txt_file=txt_path)
     dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/voxceleb/vox1/eval/wav/")
     dataloader = DataLoader(dataset, batch_size=32, shuffle=False,
-                        collate_fn=lambda x: collate_fn(x, max_len_sec=3.0, sr=16000), num_workers=0)
+                        collate_fn=lambda x: collate_fn(x, max_len_sec=3.0, sr=16000), num_workers=20)
     model = load_model()
 
     all_scores, all_labels, all_rows = [], [], []
     all_embs, all_roles = [], []
 
     EERs, all_scores, all_labels = [], [], []
-    sp2 = 0
-    sp6 = 0
-    sp_other = 0
     for batch in tqdm.tqdm(dataloader, desc="Iterating batches"):
         wav1 = batch["wav1"].to(device)
         wav2 = batch["wav2"].to(device)
         labels = batch["label"].to(device)
         with torch.no_grad():
-            breakpoint()
+            # breakpoint()
             emb1 = model(wav1, 1) #get only emb and not p # [B, n_sp, emb_dim]
-            emb2 = model(wav2, 2) #[B, n_sp, emb_dim]
-            if emb1.size(1) == 2 and emb2.size(1) ==2:
-                sp2 += 1
-            elif emb1.size(1) == 6 and emb2.size(1) ==6:
-                sp6 += 1
-            else:
-                sp_other += 1
+            emb2 = model(wav2, 1) #[B, n_sp, emb_dim]
     
             preds = calc_cosine_similarities(emb1, emb2)
 
         all_scores.append(preds.cpu())
         all_labels.append(labels.cpu())
-    print(f"sp2: {sp2}, sp6: {sp6}, sp_other: {sp_other}")
     breakpoint()
 
     all_scores_compressed = torch.cat([torch.amax(scores, dim=(1, 2)) for scores in all_scores], dim=0)

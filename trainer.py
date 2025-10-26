@@ -12,7 +12,8 @@ from configs import paper_config as config
 import os
 import math
 import ast
-from dataset import SpeakerIdentificationDM
+# from dataset import SpeakerIdentificationDM
+from dataset_debug import SpeakerIdentificationDM
 import warnings
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
@@ -243,7 +244,8 @@ if __name__ == "__main__":
     #     log_every_n_steps=1,
     #     enable_checkpointing=False
     # )
-    trainer.validate(model, datamodule=dm, ckpt_path=config.ckpt_path)
-    # trainer.fit(model, dm, ckpt_path= config.ckpt_path)
+    
+    trainer.fit(model, dm, ckpt_path= config.ckpt_path)
+    trainer.validate(model, datamodule=dm)
 
     wandb.finish()
