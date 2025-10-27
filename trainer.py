@@ -13,7 +13,8 @@ import os
 import math
 import ast
 # from dataset import SpeakerIdentificationDM
-from dataset_debug import SpeakerIdentificationDM
+# from dataset_debug import SpeakerIdentificationDM
+from dataset_svs import SpeakerIdentificationDM
 import warnings
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR

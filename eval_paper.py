@@ -126,7 +126,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=13-val/loss=8.88.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers_2nsp_nandebug/best-checkpoint-epoch=967-val/loss=4.80.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):
@@ -204,36 +204,28 @@ if __name__ == '__main__':
     # labels, wavs1, wavs2 = get_audio_and_labels(txt_file=txt_path)
     dataset = SpeakerVerificationDataset(trials_txt=txt_path, base_dir="/mnt/disks/data/datasets/Datasets/voxceleb/vox1/eval/wav/")
     dataloader = DataLoader(dataset, batch_size=32, shuffle=False,
-                        collate_fn=lambda x: collate_fn(x, max_len_sec=3.0, sr=16000), num_workers=0)
+                        collate_fn=lambda x: collate_fn(x, max_len_sec=3.0, sr=16000), num_workers=20)
     model = load_model()
 
     all_scores, all_labels, all_rows = [], [], []
     all_embs, all_roles = [], []
 
     EERs, all_scores, all_labels = [], [], []
-    sp2 = 0
-    sp6 = 0
-    sp_other = 0
+
     for batch in tqdm.tqdm(dataloader, desc="Iterating batches"):
         wav1 = batch["wav1"].to(device)
         wav2 = batch["wav2"].to(device)
         labels = batch["label"].to(device)
         with torch.no_grad():
-            breakpoint()
+            # breakpoint()
             emb1 = model(wav1, 1) #get only emb and not p # [B, n_sp, emb_dim]
             emb2 = model(wav2, 2) #[B, n_sp, emb_dim]
-            if emb1.size(1) == 2 and emb2.size(1) ==2:
-                sp2 += 1
-            elif emb1.size(1) == 6 and emb2.size(1) ==6:
-                sp6 += 1
-            else:
-                sp_other += 1
     
             preds = calc_cosine_similarities(emb1, emb2)
 
         all_scores.append(preds.cpu())
         all_labels.append(labels.cpu())
-    print(f"sp2: {sp2}, sp6: {sp6}, sp_other: {sp_other}")
+    # print(f"sp2: {sp2}, sp6: {sp6}, sp_other: {sp_other}")
     breakpoint()
 
     all_scores_compressed = torch.cat([torch.amax(scores, dim=(1, 2)) for scores in all_scores], dim=0)

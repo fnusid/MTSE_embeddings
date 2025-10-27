@@ -106,7 +106,7 @@ def load_model():
 
     model = RecursiveAttnPooling(encoder=None, config=config).to(device)
     
-    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers_1nsp_nandebug/best-checkpoint-epoch=986-val/loss=2.81.ckpt", weights_only=True, map_location='cuda')
+    ckpt = torch.load("/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers_1sp_noisy/best-checkpoint-epoch=992-val/loss=4.87.ckpt", weights_only=True, map_location='cuda')
     new_state_dict = {}
     for k, v in ckpt["state_dict"].items():
         if k.startswith("model."):

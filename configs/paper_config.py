@@ -1,6 +1,6 @@
 config_mode="paper"
 #model params
-model_name="mtse_embeddings_paper_oracle_2nsp_nandebug"
+model_name="mtse_embeddings_paper_oracle_1sp_noisy"
 C=1024
 d_model=1536
 dprime_model=1536
@@ -11,7 +11,7 @@ dataset_params= dict(
 speeches_list = "/mnt/disks/data/datasets/txts/paper_config/voxceleb_train.txt",
 noise_list = "/mnt/disks/data/datasets/txts/noise.txt",
 rir_list = "/mnt/disks/data/datasets/txts/rirs_dev.txt",
-N_max_speakers=2, #changed to 1 for basic of the basic configuration
+N_max_speakers=1, #changed to 1 for basic of the basic configuration
 overlap_ratio=1.0,
 desired_duration=3.0,
 sr=16000,
@@ -43,13 +43,13 @@ loss_params=dict(
 
 
 #Trainer params
-max_epochs=1000 #change it back to 1000, right now basic of the basic configuration
+max_epochs=2000 #change it back to 1000, right now basic of the basic configuration
 devices=[0]
 check_val_every_n_epoch=2
 log_every_n_steps=10
 gradient_clip_val=0.8
 enable_checkpointing=True
-ckpt_path=None
+ckpt_path="/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers_1sp_noisy/best-checkpoint-epoch=992-val/loss=4.87.ckpt"
 # ckpt_path="/scratch/profdj_root/profdj0/sidcs/codebase/speaker_embedding_codebase/model_clean_4sp/best-checkpoint-epoch=18-val/loss=14.87.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/model_clean_2sp/best-checkpoint-epoch=98-val/loss=11.17.ckpt"
 # ckpt_path = "/home/sidharth./codebase/speaker_embedding_codebase/ckpts/paper_oracle_speakers/best-checkpoint-epoch=248-val/loss=8.37.ckpt"
@@ -67,4 +67,4 @@ base_lr_factor = 0.1
 
 #wandb params
 project="mtse_speech_embeedings"
-model_name="paper_oracle_speakers_2nsp_nandebug"
+model_name="paper_oracle_speakers_1sp_noisy"
