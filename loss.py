@@ -9,8 +9,19 @@ import numpy as np
 Figure out the scales
 '''
 
+def loss_cnt_full(p, S, eps=1e-8):
+    # p: [N_max]
+    Nmax = p.size(0)
+    
+    # Create ideal vector: 1 for real speakers, 0 for remaining STOPs
+    target = torch.zeros_like(p)
+    target[:S] = 1  # first S should be 1
 
+    # Binary cross-entropy
+    bce = - (target * torch.log(p+eps) +
+             (1-target) * torch.log(1-p+eps))
 
+    return bce.mean()
 
 class LossWrapper(nn.Module):
     def __init__(self, num_class, **kwargs):
@@ -150,8 +161,8 @@ class ArcFaceLoss(nn.Module):
                     C[i, n] = self.arcface_ce(pred_embs[b][n].unsqueeze(0), spk_ids[i])
 
 
-            if not torch.isfinite(C).all():
-                C = torch.nan_to_num(C, nan=1e6, posinf=1e6, neginf=1e6)
+            # if not torch.isfinite(C).all():
+            #     C = torch.nan_to_num(C, nan=1e6, posinf=1e6, neginf=1e6)
 
             # Hungarian min over permutations
             row_ind, col_ind = linear_sum_assignment(C.detach().cpu().numpy())
@@ -169,24 +180,51 @@ class ArcFaceLoss(nn.Module):
             # ------------------------------------------------
             # (2) Counting loss L_cnt (Eq.19–20)
             # ------------------------------------------------
-            p = pred_ps[b].clamp(1e-6, 1 - 1e-6)
+            p = pred_ps[b].clamp(1e-8, 1 - 1e-8) 
+            '''
+            p should be ideally
+            [p1, p2, p_stop] for 2 speakers
+            [p1, p_stop] for 1 speaker
+            '''
+            # eps = 1e-6
+            # if S <= N:  # general Eq.(19)
+            #     # first S → should be 1; next (S+1) → should be 0 (stop)
+            #     valid = p[:S]
+            #     stop = p[S] if S < p.numel() else p[-1]
+            #     L_cnt = -(torch.log(valid + eps).sum() + torch.log(1-stop + eps)) / (S + 1)
+            # else:
+            #     # if S > N (shouldn't happen normally)
+            #     L_cnt = torch.tensor(0.0, device=device)
+
             eps = 1e-6
-            if S <= N:  # general Eq.(19)
-                # first S → should be 1; next (S+1) → should be 0 (stop)
-                valid = p[:S]
-                stop = p[S] if S < p.numel() else p[-1]
-                L_cnt = -(torch.log(1 - valid + eps).sum() + torch.log(stop + eps)) / (S + 1)
-            else:
-                # if S > N (shouldn't happen normally)
-                L_cnt = torch.tensor(0.0, device=device)
+            # N = len(p)
+            # p2 = p[1]
+            # if S == 1:
+            #     L_cnt = -torch.log(1-p2 + eps)
+            # else:
+            #     L_cnt = -torch.log(p2 + eps)
+            L_cnt = loss_cnt_full(p, S, eps=1e-8)
+            
+
+        
 
             # simplified alternative for only 1–2 speakers (Eq.20)
-            if S == 1 and p.size(0) > 1:
-                L_cnt = -torch.log(p[1] + eps)
-            elif S == 2 and p.size(0) > 1:
-                L_cnt = -torch.log(1 - p[1] + eps)
-                if L_cnt == np.inf or torch.isnan(L_cnt):
-                    print("p[1]: ", p[1])
+            # p2 = p[1] if len(p) >= 2 else torch.tensor([0]) # for 2 speakers
+            # if S == 1 and N == 1:
+            #     # L_cnt = -torch.log(1 - p2 + eps)
+            #     L_cnt = -torch.log(1 - p + eps)
+            # elif S == 1 and N > 1:
+            #     L_cnt = -torch.log(1 - p[0] + eps)
+            
+            # elif S == 2 and N == 1:
+            #     L_cnt = -torch.log(p + eps)
+            
+            # elif S ==2 and N >=2:
+            #     L_cnt = -torch.log(1 - p[1] + eps)
+            # L_cnt = loss_cnt_multi_ce(p, S, eps=1e-8)
+
+            if L_cnt == np.inf or torch.isnan(L_cnt):
+                print("p: ", p)
                     
 
             # ------------------------------------------------

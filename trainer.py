@@ -12,7 +12,8 @@ from configs import paper_config as config
 import os
 import math
 import ast
-from dataset import SpeakerIdentificationDM
+# from dataset import SpeakerIdentificationDM
+from dataset_new import SpeakerIdentificationDM
 import warnings
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
@@ -21,6 +22,7 @@ warnings.filterwarnings("ignore", module="torchaudio")
 torch.set_float32_matmul_precision("high")
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
+pl.seed_everything(42, workers=True)
 
 
 def debug_gradients_and_losses(model, loss_dict):
@@ -68,8 +70,13 @@ class SpeakerEmbeddingModule(pl.LightningModule):
 
 
 
-    def forward(self, x):
-        emb, p = self.model(x)
+    def forward(self, x, nsp=None):
+        if self.model.model_mode=='train':
+            emb, p = self.model(x, nsp=nsp)
+        elif self.model.model_mode=='inference':
+            emb, p = self.model(x, nsp=nsp)
+        else:
+            raise ValueError("Unknown model mode")
         # emb = emb.mean(dim = 1)
         return emb, p
 
@@ -86,8 +93,10 @@ class SpeakerEmbeddingModule(pl.LightningModule):
             self.loss.loss_fn.update_schedules(self.current_epoch)
 
         noisy, labels = batch
+        nsp = [len(torch.argwhere(item == 1)) for item in labels][0]
         # x = noisy.mean(dim=1) #why?
-        emb, p = self(noisy)
+        self.model.model_mode = "train"
+        emb, p = self(noisy, nsp=nsp)
         total_loss, loss_dict = self.loss(emb, p, labels)
         # if batch_idx % 500 == 0:
         #     # 1️⃣ Backward pass first to populate gradients
@@ -111,9 +120,29 @@ class SpeakerEmbeddingModule(pl.LightningModule):
         # start = time.time()
         # breakpoint()
         noisy, labels = batch
-        emb, p = self(noisy)
+        nsp = [len(torch.argwhere(item == 1)) for item in labels][0]
+        self.model.model_mode = "inference"
+        emb, pred_ps = self(noisy, nsp=nsp)
         # mid = time.time()
-        total_loss, loss_dict = self.loss(emb, p, labels)
+        total_loss, loss_dict = self.loss(emb, pred_ps, labels)
+        pred_sp_count = []
+        threshold = 0.5
+        for p in pred_ps:  # pred_ps is a list of [B] vectors or stacked as [B, N+1]
+            stop_idx = torch.where(p < threshold)[0]  # STOP triggers when p < th
+            if len(stop_idx) == 0:
+                pred_count = len(p)  # STOP never fired → assume max speakers
+            else:
+                pred_count = stop_idx[0].item()  # first STOP position = speaker count
+
+            pred_sp_count.append(pred_count)
+        
+        # print("pred_sp_count: ", pred_sp_count)
+        gt_sp_count = [(item == 1).sum().item() for item in labels]
+        # print("gt_sp_count: ", gt_sp_count)
+        sp_acc = sum(
+                1 if pred_sp_count[i] == gt_sp_count[i] else 0
+                for i in range(len(gt_sp_count))
+            ) / len(gt_sp_count)
         # end = time.time()
         # print(f"[Val step {batch_idx}] forward: {mid-start:.2f}s | loss: {end-mid:.2f}s")
         for k, v in loss_dict.items():
@@ -121,7 +150,7 @@ class SpeakerEmbeddingModule(pl.LightningModule):
                 self.log(f"val/{k}", v, prog_bar=False, on_step=False, on_epoch=True)
             else:
                 self.log(f"val/loss", v, prog_bar=True, on_step=False, on_epoch=True)
-
+        self.log(f"val/speaker_count_acc", sp_acc, prog_bar=True, on_step=False, on_epoch=True)
         return total_loss
     
     # def configure_optimizers(self):
@@ -208,7 +237,7 @@ if __name__ == "__main__":
         enable_checkpointing=True,
         callbacks=[
             # EarlyStopping(monitor='val/loss', patience=20, mode='min'),
-            ModelCheckpoint(dirpath=f'/home/sidharth./codebase/speaker_embedding_codebase/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
+            ModelCheckpoint(dirpath=f'/home/sidharth./codebase/speaker_embedding_codebase/ckpts/{config.model_name}', monitor='val/loss', mode='min', save_top_k=3, filename='best-checkpoint-{epoch:02d}-{val/loss:.2f}')
         ],
     )
     # trainer = pl.Trainer(

@@ -24,6 +24,9 @@ class RecursiveAttnPooling(nn.Module):
         Dp = config.dprime_model
         E = config.emb_dim
 
+        #train or inference
+        self.model_mode = "train"
+
         # attention layers
         self.W1 = nn.Linear(3 * D, Dp, bias=False)
         self.Wc = nn.Linear(D, Dp, bias=False)
@@ -40,6 +43,7 @@ class RecursiveAttnPooling(nn.Module):
         self.register_buffer("C0", torch.zeros(D))
 
         self.threshold_stop = nn.Parameter(torch.tensor(config.threshold_stop), requires_grad=False)
+        self.N_max_speakers = config.dataset_params["N_max_speakers"]
         self.stop_fc = nn.Linear(2*config.d_model, 1)
         
 
@@ -75,11 +79,11 @@ class RecursiveAttnPooling(nn.Module):
 
         out1 = self.W1(e) + self.Wc(C)  # [B, T, Dp]
         out2 = self.W2(F.relu(out1))              # [B, T, D]
-        # breakpoint()
+
 
         # Final attention weights
-        A = torch.softmax(out2, dim=-1)             # [B, T]
-        A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
+        A = torch.softmax(out2, dim=1)             # [B, T. D], along the time dimension
+        # A = A / (A.sum(dim=1, keepdim=True) + 1e-8)
 
         return A, out2 #[B, T, D], [B, T, D]
 
@@ -110,7 +114,7 @@ class RecursiveAttnPooling(nn.Module):
     # ------------------------------
     # forward
     # ------------------------------
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, nsp=None):
         """
         x: input to encoder
         Returns: [B, N, E] embeddings (N speakers found)
@@ -128,53 +132,84 @@ class RecursiveAttnPooling(nn.Module):
         embeddings = []
         stop = torch.zeros(B, dtype=torch.bool, device=h.device)
         count = 0
-        mask = torch.ones((B, 6), dtype=torch.bool, device=h.device)
         #DO INDIVIDUAL STOP FOR EACH OF THE ITEM IN BATCH
         '''
         KEEP A MASK VARIABLE AND APPLY THE MASK AT THE END
         '''
+        if self.model_mode == 'train':
+            while count <= self.N_max_speakers:
+                a_init = torch.ones(B, T, 1, device=h.device) / T
+                mu, sigma = self.weighted_stats(h, a_init)
 
-        while not torch.all(stop).item() and count < 6:
-            # uniform init attention to compute initial mu/sigma
-            a_init = torch.ones(B, T, 1, device=h.device) / T
-            mu, sigma = self.weighted_stats(h, a_init)
+                # attention with coverage
+                A, a = self.calculate_attn(h, mu, sigma, C)  # [B, T]
 
-            # attention with coverage
-            A, a = self.calculate_attn(h, mu, sigma, C)  # [B, T]
+                # speaker-specific stats
+                mu_post, sigma_post = self.weighted_stats(h, A)  # [B, D]
 
-            # speaker-specific stats
-            mu_post, sigma_post = self.weighted_stats(h, a)  # [B, D]
+                # embedding
+                emb = self.w0(torch.cat([mu_post, sigma_post], dim=-1))  # [B, E]
+                #normalize the embeddings because ArcFace assumes embeddings lie on a unit hypersphere
+                emb = F.normalize(emb, dim = -1)
+                if torch.isnan(emb).any():
+                    print("NaN in embeddings!")
+                    breakpoint()            
+                embeddings.append(emb)
 
-            # embedding
-            emb = self.w0(torch.cat([mu_post, sigma_post], dim=-1))  # [B, E]
-            #normalize the embeddings because ArcFace assumes embeddings lie on a unit hypersphere
-            emb = F.normalize(emb, dim = -1)
-            embeddings.append(emb)
+                # update coverage
+    
+                C = C + A
 
-            # update coverage
- 
-            C = C + a
+                # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
 
-            # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
+                # stopping
+                p = self.calculate_p(a)  # [B], pre-normalized attention weights
+                # print("P is ", p)
+                
+                self.probabilities.append(p)
+                count +=1
 
-            # stopping
-            p = self.calculate_p(a)  # [B]
-            # print("P is ", p)
-            th = torch.clamp(self.threshold_stop, 0.1, 0.9)
-            mask_indices = torch.where(p < self.threshold_stop)[0] 
-            if mask_indices.numel() > 0:
-                mask[mask_indices, count:] = 0
-            
+        elif self.model_mode == 'inference':
+            # while count <= self.N_max_speakers and (~stop).any(): #enable it after it learns
+            while count <= self.N_max_speakers:
+                # uniform init attention to compute initial mu/sigma
+                a_init = torch.ones(B, T, 1, device=h.device) / T
+                mu, sigma = self.weighted_stats(h, a_init)
 
-            self.probabilities.append(p)
-            stop = stop | (p < self.threshold_stop)
-            count +=1
+                # attention with coverage
+                A, a = self.calculate_attn(h, mu, sigma, C)  # [B, T]
 
-        #multiply self.probabilities with mask and embeddings with mask
+                # speaker-specific stats
+                mu_post, sigma_post = self.weighted_stats(h, A)  # [B, D]
+
+                # embedding
+                emb = self.w0(torch.cat([mu_post, sigma_post], dim=-1))  # [B, E]
+                #normalize the embeddings because ArcFace assumes embeddings lie on a unit hypersphere
+                emb = F.normalize(emb, dim = -1)
+                if torch.isnan(emb).any():
+                    print("NaN in embeddings!")
+                    breakpoint()            
+                embeddings.append(emb)
+
+                # update coverage
+    
+                C = C + A
+
+                # C = C + torch.matmul(A.unsqueeze(1), h).squeeze(1) / T  # crude update
+
+                # stopping
+                p = self.calculate_p(a)  # [B], pre-normalized attention weights
+                # print("P is ", p)
+                th = torch.clamp(self.threshold_stop, 0.1, 0.9)
+                
+                self.probabilities.append(p)
+                stop = stop | (p < self.threshold_stop)
+                count +=1
+
+            #multiply self.probabilities with mask and embeddings with mask
 
         embeddings = torch.stack(embeddings, dim=1)  # [B, N, E]
         probs = torch.stack(self.probabilities, dim=1)  # [B, N]
-        embeddings = embeddings * mask[:, :embeddings.size(1)].unsqueeze(-1)
 
 
         return embeddings, probs
